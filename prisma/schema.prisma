@@ -1,0 +1,119 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  name         String
+  passwordHash String
+  role         String    @default("OPERATOR") // ADMIN | OPERATOR
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model Client {
+  id          String    @id @default(uuid())
+  name        String    @unique
+  email       String?
+  notes       String?
+  orders      Order[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Provider {
+  id               String           @id @default(uuid())
+  name             String
+  apiUrl           String           // e.g. "https://justanotherpanel.com/api/v2"
+  apiKey           String           // Provider API key
+  balance          Float            @default(0.0)
+  currency         String           @default("USD")
+  lowBalanceLimit  Float            @default(20.0)
+  isActive         Boolean          @default(true)
+  lastCheckedAt    DateTime?
+  orders           Order[]
+  primaryMappings  ServiceMapping[] @relation("PrimaryProvider")
+  backupMappings   ServiceMapping[] @relation("BackupProvider")
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+}
+
+model Service {
+  id              String          @id @default(uuid())
+  name            String
+  category        String          // e.g. "Instagram Followers", "YouTube Views"
+  minQuantity     Int             @default(10)
+  maxQuantity     Int             @default(100000)
+  ratePer1000     Float           @default(0.0)
+  dripFeedAllowed Boolean         @default(false)
+  mapping         ServiceMapping?
+  orders          Order[]
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+}
+
+model ServiceMapping {
+  id                String    @id @default(uuid())
+  serviceId         String    @unique
+  service           Service   @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  
+  primaryProviderId String
+  primaryProvider   Provider  @relation("PrimaryProvider", fields: [primaryProviderId], references: [id], onDelete: Cascade)
+  primaryServiceId  String    // ID in upstream provider (e.g. "124")
+
+  backupProviderId  String?
+  backupProvider    Provider? @relation("BackupProvider", fields: [backupProviderId], references: [id], onDelete: SetNull)
+  backupServiceId   String?   // ID in backup provider (e.g. "532")
+
+  autoFailover      Boolean   @default(true)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
+
+model Order {
+  id                 String       @id @default(uuid())
+  clientId           String?
+  client             Client?      @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  serviceId          String
+  service            Service      @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  link               String
+  quantity           Int
+  
+  // Drip-feed / Interval Scheduling
+  runs               Int          @default(1)
+  intervalMinutes    Int          @default(0)
+  completedRuns      Int          @default(0)
+
+  // Upstream Routing & Execution
+  currentProviderId  String?
+  currentProvider    Provider?    @relation(fields: [currentProviderId], references: [id], onDelete: SetNull)
+  providerOrderId    String?      // ID returned by provider API
+  
+  status             String       @default("PENDING") // PENDING | PROCESSING | IN_PROGRESS | COMPLETED | PARTIAL | CANCELED | FAILED
+  startCount         Int?
+  remains            Int?
+  charge             Float        @default(0.0)
+
+  // Failover Tracking
+  failoverAttempted  Boolean      @default(false)
+  failoverReason     String?
+
+  // Intake Source
+  source             String       @default("MANUAL") // MANUAL | MASS | CSV | GOOGLE_SHEETS
+  sheetRowIndex      Int?         // Row index in Google Sheet if synced
+
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+}
+
+model AppSetting {
+  key         String   @id
+  value       String
+  updatedAt   DateTime @updatedAt
+}
