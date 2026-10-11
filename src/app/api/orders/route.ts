@@ -17,6 +17,12 @@ export async function GET(req: NextRequest) {
   const search = searchParams.get("search");
 
   const where: any = {};
+
+  // Role isolation: customers only see their own orders
+  if (session.role === "USER") {
+    where.userId = session.userId;
+  }
+
   if (status && status !== "ALL") where.status = status;
   if (clientId && clientId !== "ALL") where.clientId = clientId;
   if (search) {
@@ -33,7 +39,7 @@ export async function GET(req: NextRequest) {
     take: 100,
     include: {
       client: { select: { id: true, name: true } },
-      service: { select: { id: true, name: true, category: true } },
+      service: { select: { id: true, name: true, category: true, sellingRatePer1000: true } },
       currentProvider: { select: { id: true, name: true } },
     },
   });
@@ -49,6 +55,11 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    const user = await db.user.findUnique({ where: { id: session.userId } });
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 401 });
+    }
+
     const body = await req.json();
     const { type } = body; // "SINGLE" | "MASS"
 
@@ -62,7 +73,6 @@ export async function POST(req: NextRequest) {
     }> = [];
 
     if (type === "MASS") {
-      // Input format: lines of "service_id | link | quantity"
       const { rawText, clientId } = body;
       const lines = (rawText || "").split("\n");
       for (const line of lines) {
@@ -77,7 +87,6 @@ export async function POST(req: NextRequest) {
         }
       }
     } else {
-      // Single order
       const { serviceId, link, quantity, clientId, runs, intervalMinutes } = body;
       if (!serviceId || !link || !quantity) {
         return NextResponse.json({ error: "Missing required order parameters" }, { status: 400 });
@@ -113,8 +122,28 @@ export async function POST(req: NextRequest) {
       });
 
       if (!service || !service.mapping) {
-        errors.push({ link: item.link, error: `Service ID ${item.serviceId} has no provider mapping` });
+        errors.push({ link: item.link, error: `Service ID ${item.serviceId} is not available` });
         continue;
+      }
+
+      // Check balance if regular user
+      const customerCost = (item.quantity / 1000) * (service.sellingRatePer1000 || 25.0);
+      const currentBalance = user.balance || 0.0;
+
+      if (user.role === "USER" && currentBalance < customerCost) {
+        errors.push({
+          link: item.link,
+          error: `Insufficient wallet balance. Cost: ${customerCost.toFixed(2)} ${user.currency}, Available: ${currentBalance.toFixed(2)} ${user.currency}`,
+        });
+        continue;
+      }
+
+      // Deduct customer wallet
+      if (user.role === "USER") {
+        await db.user.update({
+          where: { id: user.id },
+          data: { balance: currentBalance - customerCost },
+        });
       }
 
       const mapping = service.mapping;
@@ -124,7 +153,6 @@ export async function POST(req: NextRequest) {
       let failoverAttempted = false;
       let failoverReason: string | null = null;
 
-      // 1. Attempt primary provider dispatch
       try {
         const client = new SmmClient(mapping.primaryProvider.apiUrl, mapping.primaryProvider.apiKey);
         const res = await client.addOrder({
@@ -136,10 +164,8 @@ export async function POST(req: NextRequest) {
         });
         providerOrderId = res.order;
       } catch (primaryErr: any) {
-        // 2. Primary failed! Check if smart failover is configured
         if (mapping.autoFailover && mapping.backupProvider && mapping.backupServiceId) {
           try {
-            console.log(`[DISPATCH FAILOVER] Primary failed: ${primaryErr.message}. Routing to backup provider ${mapping.backupProvider.name}...`);
             const backupClient = new SmmClient(mapping.backupProvider.apiUrl, mapping.backupProvider.apiKey);
             const backupRes = await backupClient.addOrder({
               service: mapping.backupServiceId,
@@ -153,10 +179,9 @@ export async function POST(req: NextRequest) {
             failoverAttempted = true;
             failoverReason = `Primary provider rejected dispatch: ${primaryErr.message}`;
 
-            // Trigger telegram alert
             await alertFailoverTriggered({
-              orderId: "New Order",
-              clientName: item.clientId,
+              orderId: "Commercial Order",
+              clientName: user.name,
               serviceName: service.name,
               primaryProvider: mapping.primaryProvider.name,
               backupProvider: mapping.backupProvider.name,
@@ -167,8 +192,8 @@ export async function POST(req: NextRequest) {
             failoverAttempted = true;
             failoverReason = `Primary failed: ${primaryErr.message} | Backup failed: ${backupErr.message}`;
             await alertOrderFailed({
-              orderId: "New Order",
-              clientName: item.clientId,
+              orderId: "Order",
+              clientName: user.name,
               serviceName: service.name,
               provider: `${mapping.primaryProvider.name} & ${mapping.backupProvider.name}`,
               reason: failoverReason,
@@ -178,8 +203,8 @@ export async function POST(req: NextRequest) {
           initialStatus = "FAILED";
           failoverReason = `Primary provider error: ${primaryErr.message}`;
           await alertOrderFailed({
-            orderId: "New Order",
-            clientName: item.clientId,
+            orderId: "Order",
+            clientName: user.name,
             serviceName: service.name,
             provider: mapping.primaryProvider.name,
             reason: primaryErr.message,
@@ -189,12 +214,14 @@ export async function POST(req: NextRequest) {
 
       const order = await db.order.create({
         data: {
+          userId: user.id,
           clientId: item.clientId || null,
           serviceId: service.id,
           link: item.link,
           quantity: item.quantity,
           runs: item.runs || 1,
           intervalMinutes: item.intervalMinutes || 0,
+          customerCost,
           currentProviderId: assignedProviderId,
           providerOrderId,
           status: initialStatus,
@@ -202,18 +229,13 @@ export async function POST(req: NextRequest) {
           failoverReason,
           source: type === "MASS" ? "MASS" : "MANUAL",
         },
-        include: {
-          client: true,
-          service: true,
-          currentProvider: true,
-        },
       });
 
       createdOrders.push(order);
     }
 
     return NextResponse.json({
-      success: true,
+      success: createdOrders.length > 0,
       count: createdOrders.length,
       orders: createdOrders,
       errors: errors.length > 0 ? errors : undefined,

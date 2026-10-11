@@ -1,7 +1,6 @@
 import { DatabaseSync } from "node:sqlite";
 import crypto from "node:crypto";
 import path from "node:path";
-import fs from "node:fs";
 
 const dbPath = path.resolve(process.cwd(), "dev.db");
 const sqlite = new DatabaseSync(dbPath);
@@ -17,7 +16,10 @@ sqlite.exec(`
     email TEXT UNIQUE NOT NULL,
     name TEXT NOT NULL,
     passwordHash TEXT NOT NULL,
-    role TEXT NOT NULL DEFAULT 'OPERATOR',
+    role TEXT NOT NULL DEFAULT 'USER', -- ADMIN | OPERATOR | USER
+    balance REAL DEFAULT 0.0,
+    currency TEXT DEFAULT 'MAD',
+    apiKey TEXT UNIQUE,
     createdAt TEXT NOT NULL,
     updatedAt TEXT NOT NULL
   );
@@ -51,7 +53,8 @@ sqlite.exec(`
     category TEXT NOT NULL,
     minQuantity INTEGER DEFAULT 10,
     maxQuantity INTEGER DEFAULT 100000,
-    ratePer1000 REAL DEFAULT 0.0,
+    ratePer1000 REAL DEFAULT 0.0,        -- Wholesale cost per 1k ($)
+    sellingRatePer1000 REAL DEFAULT 0.0, -- Retail selling price per 1k (MAD/$)
     dripFeedAllowed INTEGER DEFAULT 0,
     createdAt TEXT NOT NULL,
     updatedAt TEXT NOT NULL
@@ -74,7 +77,8 @@ sqlite.exec(`
 
   CREATE TABLE IF NOT EXISTS orders (
     id TEXT PRIMARY KEY,
-    clientId TEXT,
+    userId TEXT,                        -- Customer who placed the order
+    clientId TEXT,                      -- Agency client tag (optional)
     serviceId TEXT NOT NULL,
     link TEXT NOT NULL,
     quantity INTEGER NOT NULL,
@@ -86,16 +90,32 @@ sqlite.exec(`
     status TEXT DEFAULT 'PENDING',
     startCount INTEGER,
     remains INTEGER,
-    charge REAL DEFAULT 0.0,
+    charge REAL DEFAULT 0.0,            -- Wholesale charge from provider ($)
+    customerCost REAL DEFAULT 0.0,      -- Retail charge deducted from customer wallet (MAD)
     failoverAttempted INTEGER DEFAULT 0,
     failoverReason TEXT,
-    source TEXT DEFAULT 'MANUAL',
+    source TEXT DEFAULT 'MANUAL',       -- MANUAL | MASS | CSV | API | GOOGLE_SHEETS
     sheetRowIndex INTEGER,
     createdAt TEXT NOT NULL,
     updatedAt TEXT NOT NULL,
+    FOREIGN KEY (userId) REFERENCES users(id) ON DELETE SET NULL,
     FOREIGN KEY (clientId) REFERENCES clients(id) ON DELETE SET NULL,
     FOREIGN KEY (serviceId) REFERENCES services(id) ON DELETE CASCADE,
     FOREIGN KEY (currentProviderId) REFERENCES providers(id) ON DELETE SET NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS deposits (
+    id TEXT PRIMARY KEY,
+    userId TEXT NOT NULL,
+    amount REAL NOT NULL,
+    currency TEXT DEFAULT 'MAD',
+    method TEXT NOT NULL,               -- CIH_BANK | ATTIJARIWAFA | CASH_PLUS | USDT_TRC20 | STRIPE
+    reference TEXT,                     -- Bank transfer receipt / transaction ID
+    status TEXT DEFAULT 'PENDING',      -- PENDING | APPROVED | REJECTED
+    adminNotes TEXT,
+    createdAt TEXT NOT NULL,
+    updatedAt TEXT NOT NULL,
+    FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
   );
 
   CREATE TABLE IF NOT EXISTS app_settings (
@@ -105,9 +125,29 @@ sqlite.exec(`
   );
 `);
 
+// Safe migration check: add columns if table existed without them
+try {
+  sqlite.exec("ALTER TABLE users ADD COLUMN balance REAL DEFAULT 0.0;");
+} catch {}
+try {
+  sqlite.exec("ALTER TABLE users ADD COLUMN currency TEXT DEFAULT 'MAD';");
+} catch {}
+try {
+  sqlite.exec("ALTER TABLE users ADD COLUMN apiKey TEXT;");
+} catch {}
+try {
+  sqlite.exec("ALTER TABLE services ADD COLUMN sellingRatePer1000 REAL DEFAULT 0.0;");
+} catch {}
+try {
+  sqlite.exec("ALTER TABLE orders ADD COLUMN userId TEXT;");
+} catch {}
+try {
+  sqlite.exec("ALTER TABLE orders ADD COLUMN customerCost REAL DEFAULT 0.0;");
+} catch {}
+
 export const db = {
   user: {
-    async findUnique({ where }: { where: { email?: string; id?: string } }) {
+    async findUnique({ where }: { where: { email?: string; id?: string; apiKey?: string } }) {
       if (where.email) {
         const stmt = sqlite.prepare("SELECT * FROM users WHERE lower(email) = lower(?)");
         const row = stmt.get(where.email) as any;
@@ -118,22 +158,161 @@ export const db = {
         const row = stmt.get(where.id) as any;
         return row || null;
       }
+      if (where.apiKey) {
+        const stmt = sqlite.prepare("SELECT * FROM users WHERE apiKey = ?");
+        const row = stmt.get(where.apiKey) as any;
+        return row || null;
+      }
       return null;
     },
-    async count() {
-      const stmt = sqlite.prepare("SELECT COUNT(*) as count FROM users");
+    async findMany({ where, orderBy }: any = {}) {
+      let query = "SELECT * FROM users";
+      if (where?.role) {
+        query += ` WHERE role = '${where.role}'`;
+      }
+      query += " ORDER BY createdAt DESC";
+      return sqlite.prepare(query).all() as any[];
+    },
+    async count({ where }: any = {}) {
+      let query = "SELECT COUNT(*) as count FROM users";
+      if (where?.role) {
+        query += ` WHERE role = '${where.role}'`;
+      }
+      const stmt = sqlite.prepare(query);
       const res = stmt.get() as any;
       return Number(res?.count || 0);
     },
     async create({ data }: { data: any }) {
       const id = data.id || crypto.randomUUID();
+      const apiKey = data.apiKey || `smm_live_${crypto.randomBytes(16).toString("hex")}`;
       const now = new Date().toISOString();
       const stmt = sqlite.prepare(`
-        INSERT INTO users (id, email, name, passwordHash, role, createdAt, updatedAt)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO users (id, email, name, passwordHash, role, balance, currency, apiKey, createdAt, updatedAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `);
-      stmt.run(id, data.email.toLowerCase(), data.name, data.passwordHash, data.role || "OPERATOR", now, now);
-      return { id, email: data.email, name: data.name, role: data.role || "OPERATOR", createdAt: now, updatedAt: now };
+      stmt.run(
+        id,
+        data.email.toLowerCase(),
+        data.name,
+        data.passwordHash,
+        data.role || "USER",
+        data.balance || 0.0,
+        data.currency || "MAD",
+        apiKey,
+        now,
+        now
+      );
+      return {
+        id,
+        email: data.email,
+        name: data.name,
+        role: data.role || "USER",
+        balance: data.balance || 0.0,
+        currency: data.currency || "MAD",
+        apiKey,
+        createdAt: now,
+        updatedAt: now,
+      };
+    },
+    async update({ where, data }: { where: { id?: string; email?: string }; data: any }) {
+      const now = new Date().toISOString();
+      const sets: string[] = [];
+      const values: any[] = [];
+      for (const [k, v] of Object.entries(data)) {
+        sets.push(`${k} = ?`);
+        values.push(v);
+      }
+      sets.push("updatedAt = ?");
+      values.push(now);
+
+      const targetCol = where.id ? "id" : "email";
+      const targetVal = where.id ? where.id : where.email?.toLowerCase();
+      values.push(targetVal);
+
+      sqlite.prepare(`UPDATE users SET ${sets.join(", ")} WHERE ${targetCol} = ?`).run(...values);
+      return this.findUnique({ where });
+    },
+  },
+
+  deposit: {
+    async findMany({ where, orderBy, take }: any = {}) {
+      let query = "SELECT d.*, u.name as userName, u.email as userEmail FROM deposits d LEFT JOIN users u ON d.userId = u.id";
+      const conditions: string[] = [];
+      const params: any[] = [];
+
+      if (where?.userId) {
+        conditions.push("d.userId = ?");
+        params.push(where.userId);
+      }
+      if (where?.status) {
+        conditions.push("d.status = ?");
+        params.push(where.status);
+      }
+      if (conditions.length > 0) {
+        query += ` WHERE ${conditions.join(" AND ")}`;
+      }
+      query += " ORDER BY d.createdAt DESC";
+      if (take) {
+        query += ` LIMIT ${Number(take)}`;
+      }
+
+      const rows = sqlite.prepare(query).all(...params) as any[];
+      return rows.map((r) => ({
+        ...r,
+        user: { name: r.userName, email: r.userEmail },
+      }));
+    },
+    async findUnique({ where }: { where: { id: string } }) {
+      const query = "SELECT d.*, u.name as userName, u.email as userEmail FROM deposits d LEFT JOIN users u ON d.userId = u.id WHERE d.id = ?";
+      const r = sqlite.prepare(query).get(where.id) as any;
+      if (!r) return null;
+      return {
+        ...r,
+        user: { name: r.userName, email: r.userEmail },
+      };
+    },
+    async create({ data }: { data: any }) {
+      const id = data.id || crypto.randomUUID();
+      const now = new Date().toISOString();
+      sqlite.prepare(`
+        INSERT INTO deposits (id, userId, amount, currency, method, reference, status, adminNotes, createdAt, updatedAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        id,
+        data.userId,
+        data.amount,
+        data.currency || "MAD",
+        data.method,
+        data.reference || null,
+        data.status || "PENDING",
+        data.adminNotes || null,
+        now,
+        now
+      );
+      return this.findUnique({ where: { id } });
+    },
+    async update({ where, data }: { where: { id: string }; data: any }) {
+      const now = new Date().toISOString();
+      const sets: string[] = [];
+      const values: any[] = [];
+      for (const [k, v] of Object.entries(data)) {
+        sets.push(`${k} = ?`);
+        values.push(v);
+      }
+      sets.push("updatedAt = ?");
+      values.push(now);
+      values.push(where.id);
+
+      sqlite.prepare(`UPDATE deposits SET ${sets.join(", ")} WHERE id = ?`).run(...values);
+      return this.findUnique({ where });
+    },
+    async count({ where }: any = {}) {
+      let query = "SELECT COUNT(*) as count FROM deposits";
+      if (where?.status) {
+        query += ` WHERE status = '${where.status}'`;
+      }
+      const res = sqlite.prepare(query).get() as any;
+      return Number(res?.count || 0);
     },
   },
 
@@ -248,8 +427,10 @@ export const db = {
             backupProvider,
           };
         }
+        const sellingRate = s.sellingRatePer1000 && s.sellingRatePer1000 > 0 ? s.sellingRatePer1000 : (s.ratePer1000 * 1.5 * 10); // default retail in MAD
         return {
           ...s,
+          sellingRatePer1000: sellingRate,
           dripFeedAllowed: Boolean(s.dripFeedAllowed),
           mapping,
         };
@@ -270,7 +451,8 @@ export const db = {
           backupProvider,
         };
       }
-      return { ...s, dripFeedAllowed: Boolean(s.dripFeedAllowed), mapping };
+      const sellingRate = s.sellingRatePer1000 && s.sellingRatePer1000 > 0 ? s.sellingRatePer1000 : (s.ratePer1000 * 1.5 * 10);
+      return { ...s, sellingRatePer1000: sellingRate, dripFeedAllowed: Boolean(s.dripFeedAllowed), mapping };
     },
     async findFirst({ where, include }: any) {
       let query = "SELECT * FROM services";
@@ -297,9 +479,10 @@ export const db = {
     async create({ data, include }: any) {
       const id = data.id || crypto.randomUUID();
       const now = new Date().toISOString();
+      const sellingRate = data.sellingRatePer1000 || (data.ratePer1000 ? data.ratePer1000 * 1.5 * 10 : 25.0);
       sqlite.prepare(`
-        INSERT INTO services (id, name, category, minQuantity, maxQuantity, ratePer1000, dripFeedAllowed, createdAt, updatedAt)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO services (id, name, category, minQuantity, maxQuantity, ratePer1000, sellingRatePer1000, dripFeedAllowed, createdAt, updatedAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         id,
         data.name,
@@ -307,6 +490,7 @@ export const db = {
         data.minQuantity || 10,
         data.maxQuantity || 100000,
         data.ratePer1000 || 0.0,
+        sellingRate,
         data.dripFeedAllowed ? 1 : 0,
         now,
         now
@@ -333,6 +517,22 @@ export const db = {
 
       return this.findUnique({ where: { id }, include });
     },
+    async update({ where, data }: { where: { id: string }; data: any }) {
+      const now = new Date().toISOString();
+      const sets: string[] = [];
+      const values: any[] = [];
+      for (const [k, v] of Object.entries(data)) {
+        sets.push(`${k} = ?`);
+        if (typeof v === "boolean") values.push(v ? 1 : 0);
+        else values.push(v);
+      }
+      sets.push("updatedAt = ?");
+      values.push(now);
+      values.push(where.id);
+
+      sqlite.prepare(`UPDATE services SET ${sets.join(", ")} WHERE id = ?`).run(...values);
+      return this.findUnique({ where });
+    },
   },
 
   order: {
@@ -340,6 +540,11 @@ export const db = {
       let query = "SELECT * FROM orders";
       const conditions: string[] = [];
       const params: any[] = [];
+
+      if (where?.userId) {
+        conditions.push("userId = ?");
+        params.push(where.userId);
+      }
 
       if (where?.status) {
         if (typeof where.status === "string") {
@@ -395,12 +600,14 @@ export const db = {
 
       const rows = sqlite.prepare(query).all(...params) as any[];
       return rows.map((o) => {
+        const user = o.userId ? sqlite.prepare("SELECT id, name, email FROM users WHERE id = ?").get(o.userId) as any : null;
         const client = o.clientId ? sqlite.prepare("SELECT id, name FROM clients WHERE id = ?").get(o.clientId) as any : null;
         const service = sqlite.prepare("SELECT id, name, category FROM services WHERE id = ?").get(o.serviceId) as any;
         const currentProvider = o.currentProviderId ? sqlite.prepare("SELECT id, name FROM providers WHERE id = ?").get(o.currentProviderId) as any : null;
         return {
           ...o,
           failoverAttempted: Boolean(o.failoverAttempted),
+          user,
           client,
           service,
           currentProvider,
@@ -412,6 +619,7 @@ export const db = {
       const o = sqlite.prepare("SELECT * FROM orders WHERE id = ?").get(where.id) as any;
       if (!o) return null;
 
+      const user = o.userId ? sqlite.prepare("SELECT id, name, email FROM users WHERE id = ?").get(o.userId) as any : null;
       const client = o.clientId ? sqlite.prepare("SELECT * FROM clients WHERE id = ?").get(o.clientId) as any : null;
       let service: any = null;
       if (o.serviceId) {
@@ -435,6 +643,7 @@ export const db = {
       return {
         ...o,
         failoverAttempted: Boolean(o.failoverAttempted),
+        user,
         client,
         service,
         currentProvider,
@@ -446,12 +655,13 @@ export const db = {
       const now = new Date().toISOString();
       sqlite.prepare(`
         INSERT INTO orders (
-          id, clientId, serviceId, link, quantity, runs, intervalMinutes, completedRuns,
-          currentProviderId, providerOrderId, status, startCount, remains, charge,
+          id, userId, clientId, serviceId, link, quantity, runs, intervalMinutes, completedRuns,
+          currentProviderId, providerOrderId, status, startCount, remains, charge, customerCost,
           failoverAttempted, failoverReason, source, sheetRowIndex, createdAt, updatedAt
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         id,
+        data.userId || null,
         data.clientId || null,
         data.serviceId,
         data.link,
@@ -465,6 +675,7 @@ export const db = {
         data.startCount || null,
         data.remains || null,
         data.charge || 0.0,
+        data.customerCost || 0.0,
         data.failoverAttempted ? 1 : 0,
         data.failoverReason || null,
         data.source || "MANUAL",
@@ -495,26 +706,40 @@ export const db = {
 
     async count({ where }: any = {}) {
       let query = "SELECT COUNT(*) as count FROM orders";
+      const conditions: string[] = [];
       const params: any[] = [];
+
+      if (where?.userId) {
+        conditions.push("userId = ?");
+        params.push(where.userId);
+      }
       if (where?.status) {
         if (typeof where.status === "string") {
-          query += " WHERE status = ?";
+          conditions.push("status = ?");
           params.push(where.status);
         } else if (where.status.in) {
           const placeholders = where.status.in.map(() => "?").join(",");
-          query += ` WHERE status IN (${placeholders})`;
+          conditions.push(`status IN (${placeholders})`);
           params.push(...where.status.in);
         }
       }
+
+      if (conditions.length > 0) {
+        query += ` WHERE ${conditions.join(" AND ")}`;
+      }
+
       const res = sqlite.prepare(query).get(...params) as any;
       return Number(res?.count || 0);
     },
 
     async aggregate({ where, _sum }: any) {
-      let query = "SELECT SUM(charge) as totalCharge FROM orders";
+      let query = "SELECT SUM(charge) as totalCharge, SUM(customerCost) as totalRevenue FROM orders";
       const res = sqlite.prepare(query).get() as any;
       return {
-        _sum: { charge: Number(res?.totalCharge || 0) },
+        _sum: {
+          charge: Number(res?.totalCharge || 0),
+          customerCost: Number(res?.totalRevenue || 0),
+        },
       };
     },
   },

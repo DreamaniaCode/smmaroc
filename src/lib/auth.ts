@@ -9,7 +9,7 @@ const JWT_SECRET = new TextEncoder().encode(
 export interface TokenPayload {
   userId: string;
   email: string;
-  role: "ADMIN" | "OPERATOR";
+  role: "ADMIN" | "OPERATOR" | "USER";
   name: string;
 }
 
@@ -41,10 +41,9 @@ export async function verifySessionToken(token: string): Promise<TokenPayload | 
 
 /**
  * Ensures at least one admin user exists in the system.
- * Seeded from ADMIN_INITIAL_EMAIL and ADMIN_INITIAL_PASSWORD.
  */
 export async function ensureInitialAdmin() {
-  const count = await db.user.count();
+  const count = await db.user.count({ where: { role: "ADMIN" } });
   if (count === 0) {
     const defaultEmail = process.env.ADMIN_INITIAL_EMAIL || "admin@agency.com";
     const defaultPass = process.env.ADMIN_INITIAL_PASSWORD || "AdminPassword123!";
@@ -53,9 +52,11 @@ export async function ensureInitialAdmin() {
     await db.user.create({
       data: {
         email: defaultEmail.toLowerCase(),
-        name: "Agency Admin",
+        name: "SMMaroc Administrator",
         passwordHash: hashedPassword,
         role: "ADMIN",
+        balance: 999999.0,
+        currency: "MAD",
       },
     });
     console.log(`[AUTH] Initial admin account created: ${defaultEmail}`);

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ShieldCheck, ArrowRight, Loader2, Sparkles } from "lucide-react";
+import { Zap, ArrowRight, Loader2, Sparkles, ShieldCheck } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -28,7 +28,7 @@ export default function LoginPage() {
         throw new Error(data.error || "Login failed");
       }
 
-      router.push("/");
+      router.push("/orders/new");
       router.refresh();
     } catch (err: any) {
       setError(err.message || "An unexpected error occurred");
@@ -38,42 +38,44 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-black">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-[#050811] bg-emerald-glow">
       <div className="w-full max-w-md">
         {/* Brand Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-tr from-brand-600 to-indigo-500 shadow-xl shadow-brand-500/20 mb-4 ring-1 ring-white/20">
-            <ShieldCheck className="w-8 h-8 text-white" />
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight text-white">Agency Operations Hub</h1>
-          <p className="text-sm text-slate-400 mt-1">Smart Failover & Multi-Provider SMM Routing</p>
+          <a href="/" className="inline-flex items-center justify-center w-14 h-14 rounded-2xl emerald-gradient emerald-glow shadow-xl shadow-emerald-500/25 mb-4">
+            <Zap className="w-7 h-7 text-white" />
+          </a>
+          <h1 className="text-2xl font-black tracking-tight text-white flex items-center justify-center gap-1.5">
+            Welcome to <span className="text-emerald-400">SMMaroc</span>
+          </h1>
+          <p className="text-sm text-slate-400 mt-1">Sign in to your client or reseller portal</p>
         </div>
 
         {/* Card */}
-        <div className="bg-slate-900/80 backdrop-blur-xl border border-slate-800/80 rounded-2xl p-6 sm:p-8 shadow-2xl">
-          <form onSubmit={handleSubmit} className="space-y-5">
+        <div className="glass-panel rounded-3xl p-6 sm:p-8 shadow-2xl border border-white/10">
+          <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
-              <div className="p-3 text-sm rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400">
+              <div className="p-3 text-xs rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400">
                 {error}
               </div>
             )}
 
             <div>
-              <label className="block text-xs font-medium text-slate-300 uppercase tracking-wider mb-2">
-                Work Email
+              <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+                Email Address
               </label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full px-4 py-2.5 rounded-xl bg-slate-950/60 border border-slate-800 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition"
+                className="w-full px-4 py-2.5 rounded-xl bg-slate-950/70 border border-slate-800 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
                 placeholder="name@agency.com"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-300 uppercase tracking-wider mb-2">
+              <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
                 Password
               </label>
               <input
@@ -81,7 +83,7 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="w-full px-4 py-2.5 rounded-xl bg-slate-950/60 border border-slate-800 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition"
+                className="w-full px-4 py-2.5 rounded-xl bg-slate-950/70 border border-slate-800 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
                 placeholder="••••••••••••"
               />
             </div>
@@ -89,7 +91,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white font-medium shadow-lg shadow-brand-600/25 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full mt-2 flex items-center justify-center gap-2 py-3 px-4 rounded-xl emerald-gradient hover:opacity-95 text-white font-bold text-sm shadow-lg shadow-emerald-600/25 transition disabled:opacity-50"
             >
               {loading ? (
                 <>
@@ -97,20 +99,29 @@ export default function LoginPage() {
                 </>
               ) : (
                 <>
-                  Enter Operations Portal <ArrowRight className="w-4 h-4" />
+                  Access SMMaroc Portal <ArrowRight className="w-4 h-4" />
                 </>
               )}
             </button>
           </form>
 
           {/* Quick Login Hint Box */}
-          <div className="mt-6 pt-5 border-t border-slate-800/80">
-            <div className="flex items-start gap-2.5 text-xs text-slate-400 bg-slate-950/40 p-3 rounded-lg border border-slate-800/60">
-              <Sparkles className="w-4 h-4 text-brand-400 shrink-0 mt-0.5" />
+          <div className="mt-6 pt-5 border-t border-slate-800/80 space-y-3">
+            <div className="flex items-start gap-2.5 text-xs text-slate-400 bg-slate-950/60 p-3 rounded-xl border border-slate-800">
+              <Sparkles className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
               <div>
-                <p className="font-semibold text-slate-300">Default Initial Credentials:</p>
+                <p className="font-semibold text-slate-300">Default Administrator Login:</p>
                 <p className="font-mono text-slate-400 mt-0.5">admin@agency.com / AdminPassword123!</p>
               </div>
+            </div>
+
+            <div className="text-center">
+              <p className="text-xs text-slate-400">
+                Don't have an account?{" "}
+                <a href="/register" className="text-emerald-400 hover:underline font-bold">
+                  Create a commercial account
+                </a>
+              </p>
             </div>
           </div>
         </div>
