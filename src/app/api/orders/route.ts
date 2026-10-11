@@ -23,6 +23,8 @@ export async function GET(req: NextRequest) {
     where.userId = session.userId;
   }
 
+  if (session.role === "ADMIN" && searchParams.get("userId")) where.userId = searchParams.get("userId");
+
   if (status && status !== "ALL") where.status = status;
   if (clientId && clientId !== "ALL") where.clientId = clientId;
   if (search) {

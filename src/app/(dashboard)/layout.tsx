@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
+import {readApi} from "@/lib/api-client";
 import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
@@ -30,25 +32,26 @@ export default function DashboardLayout({
   const [user, setUser] = useState<any>(null);
   const [wholesaleBalance, setWholesaleBalance] = useState<number>(0);
 
+  const [sessionError, setSessionError] = useState("");
+  const [sessionLoading, setSessionLoading] = useState(true);
+  const [sessionRetry, setSessionRetry] = useState(0);
   useEffect(() => {
-    fetch("/api/auth/me")
-      .then((res) => {
-        if (!res.ok) throw new Error();
-        return res.json();
-      })
-      .then((data) => {
-        if (!data.authenticated) router.push("/login");
-        else { setUser(data.user); if (data.user.role === "USER" && ["/dashboard", "/providers", "/clients", "/settings", "/admin/deposits"].includes(pathname)) router.replace("/orders/new"); }
-      })
-      .catch(() => router.push("/login"));
-
-    fetch("/api/stats")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.totalBalance !== undefined) setWholesaleBalance(data.totalBalance);
-      })
-      .catch(() => {});
-  }, [router, pathname]);
+    let active = true;
+    setSessionError("");
+    setSessionLoading(true);
+    fetch("/api/auth/me", {cache:"no-store"}).then(async response => {
+      if (response.status === 401) { if(active) router.replace("/login"); return; }
+      if (!response.ok) throw new Error("Impossible de vérifier votre connexion. Veuillez réessayer.");
+      const data = await response.json();
+      if (!active) return;
+      if (!data.authenticated) {router.replace("/login"); return;}
+      setUser(data.user);
+      if (data.user.role === "USER" && ["/dashboard","/providers","/clients","/settings","/admin/deposits"].includes(pathname)) {router.replace("/orders/new"); return;}
+      setSessionLoading(false);
+      if (data.user.role === "ADMIN") readApi("/api/stats").then(stats => {if(active) setWholesaleBalance(stats.totalBalance || 0);}).catch(()=>{});
+    }).catch(() => {if(active) setSessionError("Impossible de vérifier votre connexion. Veuillez réessayer.");});
+    return () => {active=false;};
+  }, [router, pathname, sessionRetry]);
 
   const handleLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -85,7 +88,7 @@ export default function DashboardLayout({
       {/* Sidebar */}
       <aside className="w-64 border-r border-white/5 bg-[#0b1120]/80 backdrop-blur-xl flex flex-col shrink-0">
         <div className="p-6 border-b border-white/5">
-          <a href="/" className="flex items-center gap-3">
+          <Link href="/" className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl emerald-gradient flex items-center justify-center shadow-lg shadow-emerald-500/20">
               <img src="/smmaroc-logo.png" alt="" width={32} height={32}/>
             </div>
@@ -102,7 +105,7 @@ export default function DashboardLayout({
                 {isAdmin ? "Admin Deck" : "Client Portal"}
               </span>
             </div>
-          </a>
+          </Link>
         </div>
 
         <nav className="flex-1 p-4 space-y-1.5 overflow-y-auto">
@@ -110,7 +113,7 @@ export default function DashboardLayout({
             const Icon = item.icon;
             const isActive = pathname === item.href;
             return (
-              <a
+              <Link
                 key={item.href}
                 href={item.href}
                 className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition ${
@@ -123,7 +126,7 @@ export default function DashboardLayout({
               >
                 <Icon className={`w-4 h-4 ${isActive ? "text-white" : ""}`} />
                 {item.label}
-              </a>
+              </Link>
             );
           })}
         </nav>
@@ -168,13 +171,13 @@ export default function DashboardLayout({
             <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold">
               <Wallet className="w-3.5 h-3.5" />
               <span>Balance: {(user?.balance || 0).toFixed(2)} {user?.currency || "MAD"}</span>
-              <a
+              <Link
                 href="/add-funds"
                 className="ml-1 w-5 h-5 rounded-full emerald-gradient flex items-center justify-center text-white hover:opacity-90 transition"
                 title="Add Funds"
               >
                 <Plus className="w-3 h-3" />
-              </a>
+              </Link>
             </div>
 
             {/* Admin Wholesale Indicator */}
@@ -187,7 +190,7 @@ export default function DashboardLayout({
         </header>
 
         {/* Content Body */}
-        <main className="flex-1 overflow-y-auto p-8">{children}</main>
+        <main className="flex-1 overflow-y-auto p-8">{sessionError ? <div role="alert" className="dashboard-alert">{sessionError}<button onClick={()=>setSessionRetry(n=>n+1)}>Réessayer</button></div> : sessionLoading ? <p role="status">Chargement de votre espace…</p> : children}</main>
       </div>
     </div>
   );

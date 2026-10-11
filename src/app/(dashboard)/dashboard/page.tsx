@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
+import {readApi} from "@/lib/api-client";
 import {
   ListOrdered,
   CheckCircle2,
@@ -14,17 +16,18 @@ import {
 } from "lucide-react";
 
 export default function OverviewPage() {
+  const [error,setError] = useState("");
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchStats = async () => {
     try {
-      const res = await fetch("/api/stats");
-      const data = await res.json();
+      const data = await readApi("/api/stats");
       setStats(data);
-    } catch (err) {
-      console.error(err);
+      setError("");
+    } catch (err: any) {
+      setError(err.message);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -42,6 +45,7 @@ export default function OverviewPage() {
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
+      {error && <div role="alert" className="dashboard-alert">{error}<button onClick={handleRefresh}>Réessayer</button></div>}
       {/* Welcome Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-slate-900 to-slate-900/60 p-6 rounded-2xl border border-slate-800">
         <div>
@@ -58,12 +62,12 @@ export default function OverviewPage() {
           >
             <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} /> Refresh
           </button>
-          <a
+          <Link
             href="/orders/new"
             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold shadow-lg shadow-brand-600/20 transition"
           >
             <PlusCircle className="w-3.5 h-3.5" /> Place Order
-          </a>
+          </Link>
         </div>
       </div>
 
@@ -114,6 +118,11 @@ export default function OverviewPage() {
         </div>
       </div>
 
+      <section className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800/80">
+        <div className="flex justify-between items-center mb-4"><h2 className="font-semibold">Clients inscrits ({stats?.totalClients ?? "—"})</h2><Link href="/clients" className="text-brand-400 text-sm">Voir tous les clients →</Link></div>
+        {loading ? <p role="status">Chargement…</p> : stats?.recentClients?.length ? <div className="space-y-3">{stats.recentClients.map((client:any)=><div key={client.id} className="flex flex-wrap justify-between gap-3 border-b border-slate-800 pb-3"><div><b>{client.name}</b><p className="text-sm text-slate-400">{client.email}</p></div><div className="text-sm text-right"><p>{Number(client.balance).toFixed(2)} {client.currency}</p><Link href={"/orders?userId="+client.id} className="text-brand-400">Voir les commandes →</Link></div></div>)}</div> : <p className="text-sm text-slate-400">Aucun compte client inscrit pour le moment.</p>}
+      </section>
+
       {/* Upstream Providers Balance Monitor */}
       <div className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800/80">
         <div className="flex items-center justify-between mb-5">
@@ -121,12 +130,12 @@ export default function OverviewPage() {
             <Server className="w-4 h-4 text-brand-400" />
             <h2 className="text-base font-semibold text-white">Upstream Wholesale Providers</h2>
           </div>
-          <a
+          <Link
             href="/providers"
             className="text-xs font-medium text-brand-400 hover:text-brand-300 flex items-center gap-1 transition"
           >
             Manage Providers <ExternalLink className="w-3 h-3" />
-          </a>
+          </Link>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -159,7 +168,7 @@ export default function OverviewPage() {
 
       {/* Quick Action Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        <a
+        <Link
           href="/orders/new"
           className="p-6 rounded-2xl bg-gradient-to-br from-brand-950/40 to-slate-900 border border-brand-800/40 hover:border-brand-500/50 transition group"
         >
@@ -169,9 +178,9 @@ export default function OverviewPage() {
           <p className="text-xs text-slate-400 mt-2">
             Submit multi-link campaigns, format with lines or import CSV spreadsheets directly.
           </p>
-        </a>
+        </Link>
 
-        <a
+        <Link
           href="/services"
           className="p-6 rounded-2xl bg-gradient-to-br from-indigo-950/40 to-slate-900 border border-indigo-800/40 hover:border-indigo-500/50 transition group"
         >
@@ -181,9 +190,9 @@ export default function OverviewPage() {
           <p className="text-xs text-slate-400 mt-2">
             Map internal catalog to Primary and Backup upstream providers for automatic failover.
           </p>
-        </a>
+        </Link>
 
-        <a
+        <Link
           href="/settings"
           className="p-6 rounded-2xl bg-gradient-to-br from-purple-950/40 to-slate-900 border border-purple-800/40 hover:border-purple-500/50 transition group"
         >
@@ -193,7 +202,7 @@ export default function OverviewPage() {
           <p className="text-xs text-slate-400 mt-2">
             Connect your 2-way Google Sheet template and configure instant Telegram bot alerts.
           </p>
-        </a>
+        </Link>
       </div>
     </div>
   );

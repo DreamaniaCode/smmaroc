@@ -10,6 +10,7 @@ export async function GET(req: NextRequest) {
   }
 
   if (session.role === "USER") return NextResponse.json({ clients: [] });
+  try {
   const clients = await db.client.findMany({
     orderBy: { name: "asc" },
     include: {
@@ -17,7 +18,9 @@ export async function GET(req: NextRequest) {
     },
   });
 
-  return NextResponse.json({ clients });
+  const accounts = session.role === "ADMIN" ? await db.user.findMany({where:{role:"USER"},orderBy:{createdAt:"desc"},select:{id:true,name:true,email:true,balance:true,currency:true,createdAt:true,_count:{select:{orders:true}}}}) : [];
+  return NextResponse.json({ clients, accounts });
+  } catch (error: any) {console.error("[clients]", error.code || error.name); return NextResponse.json({error:"Impossible de charger les clients. Veuillez réessayer."},{status:503});}
 }
 
 export async function POST(req: NextRequest) {

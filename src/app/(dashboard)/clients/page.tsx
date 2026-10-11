@@ -1,9 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
+import {readApi} from "@/lib/api-client";
 import { Users, PlusCircle, ExternalLink, Mail, FileText, CheckCircle } from "lucide-react";
 
 export default function ClientsPage() {
+  const [accounts,setAccounts] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -16,11 +19,12 @@ export default function ClientsPage() {
 
   const fetchClients = async () => {
     try {
-      const res = await fetch("/api/clients");
-      const data = await res.json();
+      const data = await readApi("/api/clients");
       setClients(data.clients || []);
-    } catch (err) {
-      console.error(err);
+      setAccounts(data.accounts || []);
+      setError("");
+    } catch (err: any) {
+      setError(err.message);
     } finally {
       setLoading(false);
     }
@@ -62,9 +66,9 @@ export default function ClientsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-white">Agency Clients</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-white">Clients</h1>
           <p className="text-sm text-slate-400 mt-1">
-            Organize campaigns, track client spend, and generate dedicated progress reports.
+            Retrouvez les comptes inscrits et vos fiches de clients d’agence.
           </p>
         </div>
         <button
@@ -75,6 +79,10 @@ export default function ClientsPage() {
         </button>
       </div>
 
+      {error && !showModal && <div role="alert" className="dashboard-alert">{error}<button onClick={fetchClients}>Réessayer</button></div>}
+      <section><h2 className="font-semibold mb-4">Comptes inscrits ({accounts.length})</h2>
+      {loading ? <p role="status">Chargement…</p> : accounts.length ? <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">{accounts.map(account=><article key={account.id} className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-3"><h3 className="font-bold">{account.name}</h3><p className="text-sm break-all">{account.email}</p><p className="text-sm">Solde : {Number(account.balance).toFixed(2)} {account.currency} · {account._count?.orders || 0} commandes</p><p className="text-xs text-slate-500">Inscrit le {new Date(account.createdAt).toLocaleDateString("fr-MA")}</p><Link className="text-brand-400 text-sm" href={"/orders?userId="+account.id}>Voir les commandes →</Link></article>)}</div> : <p>Aucun compte client inscrit.</p>}</section>
+      <h2 className="font-semibold">Fiches d’agence ({clients.length})</h2>
       {/* Clients Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {clients.map((c) => (
@@ -106,12 +114,12 @@ export default function ClientsPage() {
               <span className="text-[10px] text-slate-500">
                 Created {new Date(c.createdAt).toLocaleDateString()}
               </span>
-              <a
+              <Link
                 href={`/orders?clientId=${c.id}`}
                 className="text-xs font-semibold text-brand-400 hover:text-brand-300 flex items-center gap-1 transition"
               >
                 View Client Orders <ExternalLink className="w-3 h-3" />
-              </a>
+              </Link>
             </div>
           </div>
         ))}

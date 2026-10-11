@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import {readApi} from "@/lib/api-client";
 import {
   Send,
   FileSpreadsheet,
@@ -47,18 +48,15 @@ export default function NewOrderPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    fetch("/api/auth/me")
-      .then((res) => res.json())
+    readApi("/api/auth/me")
       .then((data) => {
         if (data.authenticated) setUser(data.user);
-      });
+      }).catch(err=>setError(err.message));
 
-    fetch("/api/clients")
-      .then((res) => res.json())
-      .then((data) => setClients(data.clients || []));
+    readApi("/api/clients")
+      .then((data) => setClients(data.clients || [])).catch(err=>setError(err.message));
 
-    fetch("/api/services")
-      .then((res) => res.json())
+    readApi("/api/services")
       .then((data) => {
         if (data.error) throw new Error(data.error);
         const sList = data.services || [];

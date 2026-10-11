@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import {readApi} from "@/lib/api-client";
 import {
   Search,
   Filter,
@@ -16,8 +17,9 @@ import {
 } from "lucide-react";
 
 export default function OrdersPage() {
+  const [error,setError] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
-  useEffect(() => { fetch("/api/auth/me").then(r => r.json()).then(data => setIsAdmin(data.user?.role === "ADMIN")); }, []);
+  useEffect(() => { readApi("/api/auth/me").then(data => setIsAdmin(data.user?.role === "ADMIN")).catch(err=>setError(err.message)); }, []);
   const [orders, setOrders] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
   const [statusFilter, setStatusFilter] = useState("ALL");
@@ -29,15 +31,19 @@ export default function OrdersPage() {
   const fetchOrders = async () => {
     try {
       const params = new URLSearchParams();
+      const selectedUser = new URLSearchParams(window.location.search).get("userId");
+      const selectedClient = new URLSearchParams(window.location.search).get("clientId");
+      if(selectedUser) params.set("userId", selectedUser);
+      if(selectedClient && clientFilter === "ALL") params.set("clientId", selectedClient);
       if (statusFilter !== "ALL") params.append("status", statusFilter);
       if (clientFilter !== "ALL") params.append("clientId", clientFilter);
       if (search) params.append("search", search);
 
-      const res = await fetch(`/api/orders?${params.toString()}`);
-      const data = await res.json();
+      const data = await readApi(`/api/orders?${params.toString()}`);
       setOrders(data.orders || []);
-    } catch (err) {
-      console.error(err);
+      setError("");
+    } catch (err: any) {
+      setError(err.message);
     } finally {
       setLoading(false);
     }
@@ -46,9 +52,8 @@ export default function OrdersPage() {
   useEffect(() => {
     fetchOrders();
     const timer = setInterval(fetchOrders, 30000);
-    fetch("/api/clients")
-      .then((res) => res.json())
-      .then((data) => setClients(data.clients || []));
+    readApi("/api/clients")
+      .then((data) => setClients(data.clients || [])).catch(err=>setError(err.message));
     return () => clearInterval(timer);
   }, [statusFilter, clientFilter]);
 
@@ -166,6 +171,7 @@ export default function OrdersPage() {
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
+      {error && <div role="alert" className="dashboard-alert">{error}<button onClick={fetchOrders}>Réessayer</button></div>}
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>

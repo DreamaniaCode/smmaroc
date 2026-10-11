@@ -16,3 +16,14 @@
 .logo-mark:has(img){background:transparent!important;box-shadow:none!important}.logo-mark img{width:34px;height:34px;object-fit:contain}.app-shell a[href="/"] div:has(>img),.auth-shell div:has(>img[alt="Logo SMMaroc"]){background:transparent!important;box-shadow:none!important}
 
 .logo{gap:0}.logo .brand-wordmark{color:inherit!important;white-space:nowrap;font-weight:800;letter-spacing:-.7px}.logo-mark{margin-right:9px;flex:none}.site-footer .logo-mark img{width:32px;height:32px}
+
+/* Keep dashboard surfaces consistent with the light theme. */
+.app-shell [class*="bg-gradient-to-"]{background-image:none;background-color:#fffdfb;border-color:#e8e1dc}
+.app-shell [class*="text-slate-300"],.app-shell [class*="text-slate-400"],.app-shell [class*="text-slate-500"]{color:#6d5d52}
+.app-shell [class*="text-blue-400"]{color:#2356a8}
+.app-shell [class*="text-amber-400"]{color:#936200}
+.app-shell [class*="text-rose-400"],.app-shell [class*="text-rose-500"]{color:#b42338}
+.app-shell [class*="bg-brand-6"],.app-shell .emerald-gradient,.app-shell .primary-gradient{background:#b94329;color:#fff}
+.app-shell [class*="bg-brand-6"] svg,.app-shell .emerald-gradient svg{color:#fff}
+.app-shell .dashboard-alert{background:#fff0ee;border:1px solid #e3b2a8;color:#9c2b20;border-radius:12px;padding:14px;display:flex;gap:16px;align-items:center}
+.app-shell .dashboard-alert button{font-weight:700;text-decoration:underline}
