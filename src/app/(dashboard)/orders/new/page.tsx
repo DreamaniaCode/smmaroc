@@ -7,6 +7,7 @@ import {
   FileSpreadsheet,
   Layers,
   CheckCircle,
+  CheckCircle2,
   AlertCircle,
   Loader2,
   Clock,
@@ -14,22 +15,26 @@ import {
   Wallet,
   CreditCard,
   Plus,
+  ShieldCheck,
+  Check,
+  Zap,
+  Info,
 } from "lucide-react";
 
 export default function NewOrderPage() {
   const router = useRouter();
-  const [tab, setTab] = useState<"SINGLE" | "MASS" | "CSV">("SINGLE");
+  const [tab, setTab] = useState<"SINGLE" | "MASS">("SINGLE");
 
   const [user, setUser] = useState<any>(null);
   const [clients, setClients] = useState<any[]>([]);
   const [services, setServices] = useState<any[]>([]);
   const [selectedClient, setSelectedClient] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("");
+  const [selectedPlatform, setSelectedPlatform] = useState("Instagram");
   const [selectedService, setSelectedService] = useState("");
   const [link, setLink] = useState("");
-  const [quantity, setQuantity] = useState(100);
+  const [quantity, setQuantity] = useState(1000);
 
-  // Drip-feed controls
+  // Drip-feed
   const [enableDripFeed, setEnableDripFeed] = useState(false);
   const [runs, setRuns] = useState(2);
   const [intervalMinutes, setIntervalMinutes] = useState(60);
@@ -58,30 +63,42 @@ export default function NewOrderPage() {
         const sList = data.services || [];
         setServices(sList);
         if (sList.length > 0) {
-          setSelectedCategory(sList[0].category);
           setSelectedService(sList[0].id);
         }
       });
   }, []);
 
-  const categories = Array.from(new Set(services.map((s) => s.category)));
-  const filteredServices = services.filter((s) => !selectedCategory || s.category === selectedCategory);
-  const activeServiceObj = services.find((s) => s.id === selectedService);
+  const platforms = [
+    { id: "Instagram", name: "Instagram", icon: "📸", color: "from-pink-500 to-purple-600" },
+    { id: "TikTok", name: "TikTok", icon: "🎵", color: "from-cyan-400 to-slate-900" },
+    { id: "YouTube", name: "YouTube", icon: "▶️", color: "from-red-500 to-rose-700" },
+    { id: "Telegram", name: "Telegram", icon: "✈️", color: "from-sky-400 to-blue-600" },
+    { id: "Facebook", name: "Facebook", icon: "👥", color: "from-blue-600 to-indigo-700" },
+    { id: "General", name: "All Other", icon: "⚡", color: "from-emerald-500 to-teal-700" },
+  ];
+
+  const filteredServices = services.filter((s) => {
+    if (selectedPlatform === "General") return true;
+    return s.category.toLowerCase().includes(selectedPlatform.toLowerCase());
+  });
+
+  const activeServiceObj = services.find((s) => s.id === selectedService) || filteredServices[0];
 
   const isAdmin = user?.role === "ADMIN";
   const userBalance = user?.balance || 0.0;
   const userCurrency = user?.currency || "MAD";
 
-  // Calculate live order cost
+  // Real-time calculations
   const ratePerThousand = activeServiceObj?.sellingRatePer1000 || 25.0;
   const totalCost = (quantity / 1000) * ratePerThousand;
+  const remainingBalance = userBalance - totalCost;
   const hasEnoughFunds = isAdmin || userBalance >= totalCost;
 
-  // Handle Single Order Submit
+  // Handle Submit
   const handleSingleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!hasEnoughFunds) {
-      setError(`Insufficient balance. Cost: ${totalCost.toFixed(2)} ${userCurrency}, Available: ${userBalance.toFixed(2)} ${userCurrency}. Please add funds.`);
+      setError(`Insufficient wallet balance. Cost: ${totalCost.toFixed(2)} ${userCurrency}. Please deposit funds.`);
       return;
     }
 
@@ -96,7 +113,7 @@ export default function NewOrderPage() {
         body: JSON.stringify({
           type: "SINGLE",
           clientId: selectedClient || undefined,
-          serviceId: selectedService,
+          serviceId: activeServiceObj?.id || selectedService,
           link,
           quantity,
           runs: enableDripFeed ? runs : 1,
@@ -110,11 +127,11 @@ export default function NewOrderPage() {
       setResult({
         success: true,
         count: 1,
-        message: `Order placed successfully! ${totalCost.toFixed(2)} ${userCurrency} deducted.`,
+        message: `Order dispatched successfully! ${totalCost.toFixed(2)} ${userCurrency} deducted.`,
       });
       setLink("");
 
-      // Refresh balance
+      // Refresh live user balance
       fetch("/api/auth/me")
         .then((r) => r.json())
         .then((d) => {
@@ -128,56 +145,34 @@ export default function NewOrderPage() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      {/* Header */}
+    <div className="max-w-7xl mx-auto space-y-6">
+      {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-white">Place New Order</h1>
+          <h1 className="text-2xl font-black tracking-tight text-white flex items-center gap-2">
+            <Zap className="w-6 h-6 text-emerald-400" /> New Order Desk
+          </h1>
           <p className="text-sm text-slate-400 mt-1">
-            Automated instant dispatch across Instagram, TikTok, YouTube, and Telegram.
+            Direct wholesale routing with automated start and live failover backup.
           </p>
         </div>
 
-        {/* Live Wallet Chip */}
-        <div className="px-4 py-2 rounded-2xl glass-panel border border-white/5 flex items-center gap-3">
+        {/* User Balance Chip */}
+        <div className="px-5 py-2.5 rounded-2xl glass-card border border-emerald-500/20 flex items-center gap-3">
           <Wallet className="w-4 h-4 text-emerald-400" />
           <div className="text-xs">
-            <span className="text-slate-400 block font-semibold">Wallet:</span>
-            <span className="font-bold text-emerald-400 font-mono">
+            <span className="text-slate-400 block font-bold uppercase text-[10px]">Your Balance</span>
+            <span className="font-mono font-black text-emerald-400 text-sm">
               {userBalance.toFixed(2)} {userCurrency}
             </span>
           </div>
           <a
             href="/add-funds"
-            className="ml-1 px-2.5 py-1 rounded-lg emerald-gradient text-white text-[11px] font-bold shadow-md hover:opacity-95 transition"
+            className="ml-2 px-3 py-1.5 rounded-xl primary-gradient text-white text-xs font-bold shadow-md hover:opacity-95 transition"
           >
-            + Add Funds
+            + Top Up
           </a>
         </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="flex border-b border-white/5">
-        <button
-          onClick={() => { setTab("SINGLE"); setResult(null); setError(""); }}
-          className={`py-3 px-5 text-sm font-bold border-b-2 flex items-center gap-2 transition ${
-            tab === "SINGLE"
-              ? "border-emerald-500 text-emerald-400"
-              : "border-transparent text-slate-400 hover:text-slate-200"
-          }`}
-        >
-          <Send className="w-4 h-4" /> Single Order
-        </button>
-        <button
-          onClick={() => { setTab("MASS"); setResult(null); setError(""); }}
-          className={`py-3 px-5 text-sm font-bold border-b-2 flex items-center gap-2 transition ${
-            tab === "MASS"
-              ? "border-emerald-500 text-emerald-400"
-              : "border-transparent text-slate-400 hover:text-slate-200"
-          }`}
-        >
-          <Layers className="w-4 h-4" /> Mass Multi-Link
-        </button>
       </div>
 
       {/* Notifications */}
@@ -187,7 +182,7 @@ export default function NewOrderPage() {
           <div>
             <p className="font-bold text-sm">{result.message}</p>
             <p className="text-xs text-emerald-300/80 mt-1">
-              Track live start counts and delivery progress in{" "}
+              Track live progress and start counts in{" "}
               <a href="/orders" className="underline font-bold">
                 My Orders
               </a>
@@ -206,182 +201,218 @@ export default function NewOrderPage() {
           {!hasEnoughFunds && (
             <a
               href="/add-funds"
-              className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shrink-0"
+              className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shrink-0"
             >
-              Deposit Funds
+              Deposit Funds via CIH
             </a>
           )}
         </div>
       )}
 
-      {/* Form: Single Order */}
-      {tab === "SINGLE" && (
-        <form onSubmit={handleSingleSubmit} className="glass-panel p-6 sm:p-8 rounded-3xl border border-white/10 space-y-6">
-          {/* Admin Client Tag */}
-          {isAdmin && clients.length > 0 && (
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
-                Agency Client Tag (Admin Only)
-              </label>
-              <select
-                value={selectedClient}
-                onChange={(e) => setSelectedClient(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl bg-slate-950/80 border border-slate-800 text-slate-200 text-xs focus:ring-2 focus:ring-emerald-500"
-              >
-                <option value="">-- No Client (Direct Commercial Order) --</option>
-                {clients.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
+      {/* 2-Column Dribbble Order Workspace */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        {/* Left Column: Input Form (8 cols) */}
+        <div className="lg:col-span-7 space-y-6">
+          {/* Platform Selector Grid */}
+          <div className="glass-card rounded-3xl p-6 border border-white/10 space-y-3">
+            <label className="text-xs font-bold text-slate-300 uppercase tracking-wider block">
+              Step 1: Choose Platform
+            </label>
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2.5">
+              {platforms.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => {
+                    setSelectedPlatform(p.id);
+                    const matched = services.find((s) => s.category.toLowerCase().includes(p.id.toLowerCase()));
+                    if (matched) setSelectedService(matched.id);
+                  }}
+                  className={`p-3 rounded-2xl border text-center transition flex flex-col items-center gap-1.5 ${
+                    selectedPlatform === p.id
+                      ? "bg-dark-800 border-emerald-500 ring-2 ring-emerald-500/20 text-white shadow-md"
+                      : "bg-dark-900/60 border-white/5 text-slate-400 hover:text-white"
+                  }`}
+                >
+                  <span className="text-lg">{p.icon}</span>
+                  <span className="text-xs font-bold">{p.name}</span>
+                </button>
+              ))}
             </div>
-          )}
+          </div>
 
-          {/* Category & Service */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Service & Link Form */}
+          <form onSubmit={handleSingleSubmit} className="glass-card rounded-3xl p-6 sm:p-8 border border-white/10 space-y-5">
+            {/* Service Dropdown */}
             <div>
-              <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
-                Category
-              </label>
-              <select
-                value={selectedCategory}
-                onChange={(e) => {
-                  setSelectedCategory(e.target.value);
-                  const firstInCat = services.find((s) => s.category === e.target.value);
-                  if (firstInCat) setSelectedService(firstInCat.id);
-                }}
-                className="w-full px-4 py-2.5 rounded-xl bg-slate-950/80 border border-slate-800 text-slate-200 text-xs focus:ring-2 focus:ring-emerald-500 font-bold"
-              >
-                {categories.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {cat}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
-                Service
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+                  Step 2: Choose Service
+                </label>
+                <span className="text-xs text-emerald-400 font-bold">
+                  {ratePerThousand} {userCurrency} / 1k
+                </span>
+              </div>
               <select
                 value={selectedService}
                 onChange={(e) => setSelectedService(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl bg-slate-950/80 border border-slate-800 text-slate-200 text-xs focus:ring-2 focus:ring-emerald-500 font-medium"
+                className="w-full px-4 py-3 rounded-xl bg-dark-950 border border-white/10 text-slate-100 font-medium text-xs focus:ring-2 focus:ring-emerald-500"
               >
                 {filteredServices.map((s) => (
                   <option key={s.id} value={s.id}>
-                    {s.name} ({s.sellingRatePer1000 || 25} MAD / 1k)
+                    {s.name} ({s.sellingRatePer1000 || 25} {userCurrency}/1k)
                   </option>
                 ))}
               </select>
             </div>
-          </div>
 
-          {/* Target Link */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
-              Target Link / Profile URL
-            </label>
-            <input
-              type="text"
-              value={link}
-              onChange={(e) => setLink(e.target.value)}
-              required
-              placeholder="https://instagram.com/p/xxx or https://tiktok.com/@user/video/xxx"
-              className="w-full px-4 py-2.5 rounded-xl bg-slate-950/80 border border-slate-800 text-slate-200 placeholder-slate-500 focus:ring-2 focus:ring-emerald-500 font-mono text-sm"
-            />
-          </div>
-
-          {/* Quantity */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
-                Quantity
+            {/* Target Link */}
+            <div>
+              <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
+                Step 3: Target Link / Profile URL
               </label>
-              <span className="text-xs text-slate-400 font-mono">
-                Min: {activeServiceObj?.minQuantity || 10} | Max: {activeServiceObj?.maxQuantity || 100000}
+              <input
+                type="text"
+                value={link}
+                onChange={(e) => setLink(e.target.value)}
+                required
+                placeholder="https://instagram.com/p/xxx or profile URL"
+                className="w-full px-4 py-3 rounded-xl bg-dark-950 border border-white/10 text-slate-100 placeholder-slate-500 font-mono text-xs focus:ring-2 focus:ring-emerald-500"
+              />
+            </div>
+
+            {/* Quantity & Quick Step Buttons */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+                  Step 4: Quantity
+                </label>
+                <span className="text-xs text-slate-400 font-mono">
+                  Min: {activeServiceObj?.minQuantity || 10} | Max: {activeServiceObj?.maxQuantity || 100000}
+                </span>
+              </div>
+              <input
+                type="number"
+                value={quantity}
+                onChange={(e) => setQuantity(parseInt(e.target.value, 10))}
+                min={activeServiceObj?.minQuantity || 1}
+                max={activeServiceObj?.maxQuantity || 1000000}
+                required
+                className="w-full px-4 py-3 rounded-xl bg-dark-950 border border-white/10 text-slate-100 font-mono text-base font-bold focus:ring-2 focus:ring-emerald-500"
+              />
+
+              {/* Quick Qty Buttons */}
+              <div className="flex items-center gap-2 mt-2.5">
+                {[1000, 2500, 5000, 10000].map((q) => (
+                  <button
+                    key={q}
+                    type="button"
+                    onClick={() => setQuantity(q)}
+                    className="px-3 py-1 rounded-lg bg-dark-900 border border-white/5 text-slate-400 hover:text-white text-xs font-mono font-bold hover:border-emerald-500/40 transition"
+                  >
+                    +{q.toLocaleString()}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Submit Button (Mobile / Desktop) */}
+            <button
+              type="submit"
+              disabled={loading || !hasEnoughFunds}
+              className="w-full py-4 px-4 rounded-2xl primary-gradient text-white font-bold text-sm shadow-xl shadow-emerald-500/25 flex items-center justify-center gap-2 hover:opacity-95 transition disabled:opacity-50"
+            >
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              Dispatch Order Now ({totalCost.toFixed(2)} {userCurrency})
+            </button>
+          </form>
+        </div>
+
+        {/* Right Column: Real-time Live Order Summary Card (Dribbble Signature) */}
+        <div className="lg:col-span-5 space-y-6">
+          <div className="glass-card rounded-3xl p-6 sm:p-7 border border-white/10 shadow-card space-y-6 sticky top-28">
+            <div className="flex items-center justify-between border-b border-white/5 pb-4">
+              <span className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-emerald-400" /> Live Order Summary
+              </span>
+              <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 text-[10px] font-bold border border-emerald-500/20">
+                Auto Failover Active
               </span>
             </div>
-            <input
-              type="number"
-              value={quantity}
-              onChange={(e) => setQuantity(parseInt(e.target.value, 10))}
-              min={activeServiceObj?.minQuantity || 1}
-              max={activeServiceObj?.maxQuantity || 1000000}
-              required
-              className="w-full px-4 py-2.5 rounded-xl bg-slate-950/80 border border-slate-800 text-slate-200 font-mono text-base font-bold focus:ring-2 focus:ring-emerald-500"
-            />
-          </div>
 
-          {/* Live Order Summary & Cost Pill */}
-          <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 flex items-center justify-between">
-            <div>
-              <span className="text-xs text-slate-400 font-semibold block">Total Charge:</span>
-              <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-black text-emerald-400 font-mono">
+            {/* Selected Service Card */}
+            <div className="space-y-1">
+              <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Service:</span>
+              <p className="text-sm font-bold text-slate-100">{activeServiceObj?.name || "Select a service"}</p>
+              <div className="flex items-center gap-3 text-xs text-emerald-400 pt-1">
+                <span>⚡ Instant Start</span>
+                <span>• 30-Day Auto Refill</span>
+              </div>
+            </div>
+
+            {/* Financial Breakdown */}
+            <div className="p-4 rounded-2xl bg-dark-950/80 border border-white/5 space-y-3 font-mono text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400 font-sans">Rate per 1,000:</span>
+                <span className="text-white font-bold">{ratePerThousand.toFixed(2)} {userCurrency}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400 font-sans">Ordered Quantity:</span>
+                <span className="text-white font-bold">{quantity.toLocaleString()}</span>
+              </div>
+              <div className="pt-2 border-t border-white/5 flex items-center justify-between">
+                <span className="text-slate-200 font-bold font-sans">Total Order Charge:</span>
+                <span className="text-xl font-black text-emerald-400 font-mono">
                   {totalCost.toFixed(2)} {userCurrency}
                 </span>
-                <span className="text-xs text-slate-500">
-                  ({(totalCost / 10).toFixed(2)} USD)
+              </div>
+              <div className="flex items-center justify-between text-[11px] text-slate-500">
+                <span>USD Equivalent:</span>
+                <span>${(totalCost / 10).toFixed(2)} USD</span>
+              </div>
+            </div>
+
+            {/* Wallet Impact */}
+            <div className="p-4 rounded-2xl bg-dark-950/40 border border-white/5 space-y-2 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">Available Wallet:</span>
+                <span className="font-mono font-bold text-slate-200">{userBalance.toFixed(2)} {userCurrency}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">Balance After Order:</span>
+                <span className={`font-mono font-bold ${remainingBalance < 0 ? "text-rose-400" : "text-emerald-400"}`}>
+                  {remainingBalance.toFixed(2)} {userCurrency}
                 </span>
               </div>
             </div>
 
-            <div>
-              {!hasEnoughFunds ? (
-                <span className="inline-flex items-center gap-1 text-xs font-bold text-rose-400 bg-rose-500/10 px-3 py-1.5 rounded-xl border border-rose-500/20">
-                  <AlertCircle className="w-3.5 h-3.5" /> Insufficient Funds
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-xl border border-emerald-500/20">
-                  <CheckCircle className="w-3.5 h-3.5" /> Ready to Order
-                </span>
-              )}
+            {/* Top Up Notice if low balance */}
+            {!hasEnoughFunds && (
+              <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-xs text-rose-300 space-y-3">
+                <p className="font-bold">Insufficient funds in your SMMaroc wallet.</p>
+                <a
+                  href="/add-funds"
+                  className="w-full py-2.5 px-4 rounded-xl primary-gradient text-white font-bold text-center block shadow-lg hover:opacity-95 transition"
+                >
+                  Deposit via CIH / Attijariwafa Bank
+                </a>
+              </div>
+            )}
+
+            {/* Security Guarantee Strip */}
+            <div className="pt-3 border-t border-white/5 space-y-2 text-[11px] text-slate-400">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>No password or account access required.</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>Automatic wholesale failover redundancy active.</span>
+              </div>
             </div>
           </div>
-
-          {/* Submit Button */}
-          <button
-            type="submit"
-            disabled={loading || !hasEnoughFunds}
-            className="w-full py-4 px-4 rounded-2xl emerald-gradient hover:opacity-95 text-white font-bold text-sm shadow-xl shadow-emerald-500/25 flex items-center justify-center gap-2 transition disabled:opacity-50"
-          >
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-            Confirm Order ({totalCost.toFixed(2)} {userCurrency})
-          </button>
-        </form>
-      )}
-
-      {/* Form: Mass Order */}
-      {tab === "MASS" && (
-        <form onSubmit={handleSingleSubmit} className="glass-panel p-6 sm:p-8 rounded-3xl border border-white/10 space-y-4">
-          <div className="flex items-center justify-between mb-2">
-            <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
-              Mass Orders Input
-            </label>
-            <span className="text-xs text-slate-400 font-mono">service_id | link | quantity</span>
-          </div>
-          <textarea
-            rows={8}
-            value={massText}
-            onChange={(e) => setMassText(e.target.value)}
-            required
-            placeholder={`service_id | https://instagram.com/p/xxx | 1000\nservice_id | https://tiktok.com/@user/video/xxx | 2500`}
-            className="w-full p-4 rounded-2xl bg-slate-950/80 border border-slate-800 text-slate-200 placeholder-slate-600 focus:ring-2 focus:ring-emerald-500 font-mono text-sm"
-          />
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-4 px-4 rounded-2xl emerald-gradient hover:opacity-95 text-white font-bold text-sm shadow-xl shadow-emerald-500/25 flex items-center justify-center gap-2 transition disabled:opacity-50"
-          >
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Layers className="w-4 h-4" />}
-            Dispatch Mass Batch
-          </button>
-        </form>
-      )}
+        </div>
+      </div>
     </div>
   );
 }
