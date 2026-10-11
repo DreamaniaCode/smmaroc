@@ -2,25 +2,28 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { verifySessionToken } from "@/lib/auth";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 export async function GET(req: NextRequest) {
-  const token = req.cookies.get("smm_session")?.value;
-  const session = token ? await verifySessionToken(token) : null;
-
-
-  const services = await db.service.findMany({
-    orderBy: { category: "asc" },
-    include: {
-      mapping: {
-        include: {
-          primaryProvider: { select: { id: true, name: true, balance: true, currency: true } },
-          backupProvider: { select: { id: true, name: true, balance: true, currency: true } },
-        },
-      },
-    },
-  });
-
-  const catalog = session?.role === "ADMIN" ? services : services.map(({ mapping, ratePer1000, ...service }) => service);
-  return NextResponse.json({ services: catalog });
+  try {
+    const token = req.cookies.get("smm_session")?.value;
+    const session = token ? await verifySessionToken(token) : null;
+    const services = await db.service.findMany(session?.role === "ADMIN" ? {
+      orderBy: { category: "asc" },
+      include: { mapping: { include: {
+        primaryProvider: { select: { id: true, name: true, balance: true, currency: true } },
+        backupProvider: { select: { id: true, name: true, balance: true, currency: true } },
+      } } },
+    } : {
+      orderBy: { category: "asc" },
+      select: { id: true, name: true, category: true, minQuantity: true, maxQuantity: true, sellingRatePer1000: true, dripFeedAllowed: true },
+    });
+    return NextResponse.json({ services }, { headers: { "Cache-Control": "no-store" } });
+  } catch (error: any) {
+    console.error("[catalog] Database request failed", { code: error.code || error.name });
+    return NextResponse.json({ error: "Le catalogue est temporairement indisponible. Veuillez réessayer dans quelques instants." }, { status: 503, headers: { "Cache-Control": "no-store", "Retry-After": "10" } });
+  }
 }
 
 export async function POST(req: NextRequest) {

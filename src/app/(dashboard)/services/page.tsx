@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { fetchCatalog } from "@/lib/catalog-client";
 import {
   Layers,
   PlusCircle,
@@ -37,22 +38,23 @@ export default function ServicesPage() {
   const [error, setError] = useState("");
 
   const fetchData = async () => {
+    setLoading(true);
+    setError("");
     try {
-      const [sRes, pRes] = await Promise.all([
-        fetch("/api/services"),
-        fetch("/api/providers"),
+      const [catalog, me] = await Promise.all([
+        fetchCatalog(),
+        fetch("/api/auth/me").then(r => r.json()),
       ]);
-      const sData = await sRes.json();
-      const pData = await pRes.json();
-
-      if (!sRes.ok) throw new Error(sData.error || "Catalogue indisponible");
-      setServices(sData.services || []);
-      const me = await fetch("/api/auth/me").then(r => r.json());
-      setIsAdmin(me.user?.role === "ADMIN");
-      const pList = pData.providers || [];
-      setProviders(pList);
-      if (pList.length > 0) {
-        setPrimaryProviderId(pList[0].id);
+      setServices(catalog);
+      const admin = me.user?.role === "ADMIN";
+      setIsAdmin(admin);
+      if (admin) {
+        const response = await fetch("/api/providers");
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Fournisseurs indisponibles.");
+        const pList = data.providers || [];
+        setProviders(pList);
+        if (pList.length > 0) setPrimaryProviderId(pList[0].id);
         if (pList.length > 1) setBackupProviderId(pList[1].id);
       }
     } catch (err: any) {

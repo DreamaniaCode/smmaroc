@@ -35,3 +35,9 @@ Paiements : un RIB commun, Binance Pay et PayPal (+5 % de frais de service). Le 
 ## Migration depuis SQLite
 
 Appliquer `npm run db:migrate`, arrêter le site et les workers SQLite, puis lancer `npm run db:import-sqlite -- chemin/ancien.db`. L’import crée une sauvegarde dans data/backups, exige des tables applicatives cibles vides, vérifie chaque ligne et copie toutes les données dans une transaction. Le fichier SQLite original est conservé. Le serveur ne lit plus SQLite. `npm run db:check` contrôle la connexion sans afficher le mot de passe.
+
+### Vercel
+
+Configure `DATABASE_URL` in Vercel Project Settings → Environment Variables for Production (and Preview if needed), using the PostgreSQL connection with `?schema=smmaroc`. The application defaults to `smmaroc` if the schema is omitted; migration commands still need the schema in the connection URL. Also configure `JWT_SECRET`. Redeploy after changing environment variables: local `.env` is excluded from Git and is not uploaded to Vercel.
+
+If the catalog fails, inspect the Vercel function logs for `[catalog]`: P1000/P1001 indicate authentication/connectivity problems; P2021 indicates the wrong schema or missing migrations.

@@ -1,10 +1,11 @@
 "use client";
 import Link from "next/link";
+import { fetchCatalog } from "@/lib/catalog-client";
 import { useEffect, useState } from "react";
 import { ArrowUpRight, ArrowRight, Zap, Instagram, Youtube, Music2, Send, Search, Check, Layers, Wallet, BarChart3 } from "lucide-react";
 export default function Home(){
  const [services,setServices]=useState<any[]>([]),[query,setQuery]=useState(""),[category,setCategory]=useState("ALL"),[page,setPage]=useState(1),[error,setError]=useState(""),[loading,setLoading]=useState(true);
- async function load(){setLoading(true);setError("");try{const r=await fetch('/api/services');const d=await r.json();if(!r.ok)throw Error(d.error||'Catalogue indisponible');setServices(d.services);}catch(e:any){setError(e.message);}finally{setLoading(false);}}
+ async function load(){setLoading(true);setError("");try{setServices(await fetchCatalog());}catch(e:any){setError(e.message);}finally{setLoading(false);}}
  useEffect(()=>{load()},[]);
  const filtered=services.filter(s=>(category==='ALL'||s.category===category)&&(s.name+' '+s.category+' '+s.id).toLowerCase().includes(query.toLowerCase()));
  const pages=Math.max(1,Math.ceil(filtered.length/25));

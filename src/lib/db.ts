@@ -1,8 +1,9 @@
 import { PrismaClient, Prisma } from "@prisma/client";
 import crypto from "node:crypto";
+import { databaseUrl } from "./database-url";
 import { sellingPrice } from "./pricing";
 const globalDb=globalThis as unknown as {smmPrisma?:PrismaClient};
-export const prisma=globalDb.smmPrisma ?? new PrismaClient();
+export const prisma=globalDb.smmPrisma ?? new PrismaClient({ datasourceUrl: databaseUrl() });
 if(process.env.NODE_ENV!=="production") globalDb.smmPrisma=prisma;
 function normalize(value:any):any {
  if(value instanceof Prisma.Decimal)return value.toNumber();
