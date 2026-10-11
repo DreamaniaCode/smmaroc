@@ -1,3 +1,4 @@
+import {setupTestDatabase} from "./test-database";
 import {mkdtempSync} from "node:fs";
 import {tmpdir} from "node:os";
 import path from "node:path";
@@ -15,7 +16,7 @@ async function main() {
  response={error:"Not enough funds"}; await assert.rejects(()=>client.addOrder(params),/Not enough funds/);
  response={order:"pending"}; await assert.rejects(()=>client.addOrder(params),/No order ID/);
  balance=1; await assert.rejects(()=>client.addOrder({...params,ratePer1000:undefined}),/Solde fournisseur insuffisant/);
- process.env.DATABASE_URL = "file:" + path.join(mkdtempSync(path.join(tmpdir(),"smm-provider-test-")),"test.db");
+ const cleanup=await setupTestDatabase();try{
  const {db}=await import("../src/lib/db"); const {POST}=await import("../src/app/api/v2/route");
  const user=await db.user.create({data:{name:"Test",email:"test@example.test",passwordHash:"test",balance:100}});
  const provider=await db.provider.create({data:{name:"Test",apiUrl:"https://example.test/api",apiKey:"test",currency:"USD"}});
@@ -30,5 +31,6 @@ async function main() {
  const sent=await db.order.findUnique({where:{id:queued.id}});assert.equal(sent.status,"PROCESSING");assert.equal(sent.providerOrderId,"456");assert.equal((await db.user.findUnique({where:{id:user.id}})).balance,64);
  await dispatchQueuedOrders();assert.equal(adds,before+1);
  console.log("PASS: zero/insufficient supplier balance prevents dispatch, drip cost checked, provider errors and invalid IDs rejected.");
+}finally{await cleanup();}
 }
 main().catch(e=>{console.error(e);process.exitCode=1});

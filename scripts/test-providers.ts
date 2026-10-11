@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { SmmClient } from "../src/lib/smm-client";
 import { db } from "../src/lib/db";
 

@@ -31,8 +31,8 @@ export async function attemptOrderFailover(orderId: string, failureReason: strin
   if (!mapping.autoFailover || !mapping.backupProvider || !mapping.backupServiceId || order.failoverAttempted) {
     await db.order.update({
       where: { id: order.id },
-      status: "FAILED",
-      failoverReason: `Provider reported failure: ${failureReason}. No eligible backup failover.`,
+      data: {status: "FAILED",
+      failoverReason: `Provider reported failure: ${failureReason}. No eligible backup failover.`},
     } as any);
 
     await alertOrderFailed({

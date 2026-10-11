@@ -7,11 +7,18 @@ services:
       context: .
       dockerfile: Dockerfile
     restart: always
+    command: ["sh", "-c", "npm run db:migrate && npm start"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
     ports:
       - "3000:3000"
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=file:/app/data/prod.db
+      - DATABASE_URL=${DATABASE_URL:?PostgreSQL DATABASE_URL is required}
       - JWT_SECRET=${JWT_SECRET:-smm-panel-coolify-super-secret-key-32chars}
       - ADMIN_INITIAL_EMAIL=${ADMIN_INITIAL_EMAIL:-admin@agency.com}
       - ADMIN_INITIAL_PASSWORD=${ADMIN_INITIAL_PASSWORD:-AdminPassword123!}
@@ -29,13 +36,14 @@ services:
     restart: always
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=file:/app/data/prod.db
+      - DATABASE_URL=${DATABASE_URL:?PostgreSQL DATABASE_URL is required}
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
     volumes:
       - smm_data:/app/data
     depends_on:
-      - app
+      app:
+        condition: service_healthy
 
 volumes:
   smm_data:

@@ -1,5 +1,5 @@
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -8,112 +8,173 @@ generator client {
 }
 
 model User {
-  id           String    @id @default(uuid())
-  email        String    @unique
-  name         String
-  passwordHash String
-  role         String    @default("OPERATOR") // ADMIN | OPERATOR
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id              String           @id @default(uuid())
+  email           String           @unique
+  name            String
+  passwordHash    String
+  role            String           @default("USER")
+  balance         Decimal          @default(0) @db.Decimal(24, 10)
+  currency        String           @default("MAD")
+  apiKey          String?          @unique
+  orders          Order[]
+  deposits        Deposit[]
+  supportRequests SupportRequest[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@map("users")
 }
 
 model Client {
-  id          String    @id @default(uuid())
-  name        String    @unique
-  email       String?
-  notes       String?
-  orders      Order[]
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id        String   @id @default(uuid())
+  name      String   @unique
+  email     String?
+  notes     String?
+  orders    Order[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("clients")
 }
 
 model Provider {
-  id               String           @id @default(uuid())
-  name             String
-  apiUrl           String           // e.g. "https://justanotherpanel.com/api/v2"
-  apiKey           String           // Provider API key
-  balance          Float            @default(0.0)
-  currency         String           @default("USD")
-  lowBalanceLimit  Float            @default(20.0)
-  isActive         Boolean          @default(true)
-  lastCheckedAt    DateTime?
-  orders           Order[]
-  primaryMappings  ServiceMapping[] @relation("PrimaryProvider")
-  backupMappings   ServiceMapping[] @relation("BackupProvider")
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
+  id              String           @id @default(uuid())
+  name            String
+  apiUrl          String // e.g. "https://justanotherpanel.com/api/v2"
+  apiKey          String // Provider API key
+  balance         Decimal          @default(0) @db.Decimal(24, 10)
+  currency        String           @default("USD")
+  lowBalanceLimit Decimal          @default(20) @db.Decimal(24, 10)
+  isActive        Boolean          @default(true)
+  lastCheckedAt   DateTime?
+  orders          Order[]
+  primaryMappings ServiceMapping[] @relation("PrimaryProvider")
+  backupMappings  ServiceMapping[] @relation("BackupProvider")
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@map("providers")
 }
 
 model Service {
-  id              String          @id @default(uuid())
-  name            String
-  category        String          // e.g. "Instagram Followers", "YouTube Views"
-  minQuantity     Int             @default(10)
-  maxQuantity     Int             @default(100000)
-  ratePer1000     Float           @default(0.0)
-  dripFeedAllowed Boolean         @default(false)
-  mapping         ServiceMapping?
-  orders          Order[]
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  id                 String          @id @default(uuid())
+  name               String
+  category           String // e.g. "Instagram Followers", "YouTube Views"
+  minQuantity        Int             @default(10)
+  maxQuantity        Int             @default(100000)
+  ratePer1000        Decimal         @default(0) @db.Decimal(24, 10)
+  sellingRatePer1000 Decimal         @default(0) @db.Decimal(24, 10)
+  dripFeedAllowed    Boolean         @default(false)
+  mapping            ServiceMapping?
+  orders             Order[]
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  @@map("services")
 }
 
 model ServiceMapping {
-  id                String    @id @default(uuid())
-  serviceId         String    @unique
-  service           Service   @relation(fields: [serviceId], references: [id], onDelete: Cascade)
-  
+  id        String  @id @default(uuid())
+  serviceId String  @unique
+  service   Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
   primaryProviderId String
-  primaryProvider   Provider  @relation("PrimaryProvider", fields: [primaryProviderId], references: [id], onDelete: Cascade)
-  primaryServiceId  String    // ID in upstream provider (e.g. "124")
+  primaryProvider   Provider @relation("PrimaryProvider", fields: [primaryProviderId], references: [id], onDelete: Cascade)
+  primaryServiceId  String // ID in upstream provider (e.g. "124")
 
-  backupProviderId  String?
-  backupProvider    Provider? @relation("BackupProvider", fields: [backupProviderId], references: [id], onDelete: SetNull)
-  backupServiceId   String?   // ID in backup provider (e.g. "532")
+  backupProviderId String?
+  backupProvider   Provider? @relation("BackupProvider", fields: [backupProviderId], references: [id], onDelete: SetNull)
+  backupServiceId  String? // ID in backup provider (e.g. "532")
 
-  autoFailover      Boolean   @default(true)
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  autoFailover Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([primaryProviderId, primaryServiceId])
+  @@map("service_mappings")
 }
 
 model Order {
-  id                 String       @id @default(uuid())
-  clientId           String?
-  client             Client?      @relation(fields: [clientId], references: [id], onDelete: SetNull)
-  serviceId          String
-  service            Service      @relation(fields: [serviceId], references: [id], onDelete: Cascade)
-  link               String
-  quantity           Int
-  
+  id           String  @id @default(uuid())
+  userId       String?
+  user         User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+  customerCost Decimal @default(0) @db.Decimal(24, 10)
+  clientId     String?
+  client       Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  serviceId    String
+  service      Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  link         String
+  quantity     Int
+
   // Drip-feed / Interval Scheduling
-  runs               Int          @default(1)
-  intervalMinutes    Int          @default(0)
-  completedRuns      Int          @default(0)
+  runs            Int @default(1)
+  intervalMinutes Int @default(0)
+  completedRuns   Int @default(0)
 
   // Upstream Routing & Execution
-  currentProviderId  String?
-  currentProvider    Provider?    @relation(fields: [currentProviderId], references: [id], onDelete: SetNull)
-  providerOrderId    String?      // ID returned by provider API
-  
-  status             String       @default("PENDING") // PENDING | PROCESSING | IN_PROGRESS | COMPLETED | PARTIAL | CANCELED | FAILED
-  startCount         Int?
-  remains            Int?
-  charge             Float        @default(0.0)
+  currentProviderId String?
+  currentProvider   Provider? @relation(fields: [currentProviderId], references: [id], onDelete: SetNull)
+  providerOrderId   String? // ID returned by provider API
+
+  status     String  @default("PENDING") // PENDING | PROCESSING | IN_PROGRESS | COMPLETED | PARTIAL | CANCELED | FAILED
+  startCount Int?
+  remains    Int?
+  charge     Decimal @default(0) @db.Decimal(24, 10)
 
   // Failover Tracking
-  failoverAttempted  Boolean      @default(false)
-  failoverReason     String?
+  failoverAttempted Boolean @default(false)
+  failoverReason    String?
 
   // Intake Source
-  source             String       @default("MANUAL") // MANUAL | MASS | CSV | GOOGLE_SHEETS
-  sheetRowIndex      Int?         // Row index in Google Sheet if synced
+  source        String @default("MANUAL") // MANUAL | MASS | CSV | GOOGLE_SHEETS
+  sheetRowIndex Int? // Row index in Google Sheet if synced
 
-  createdAt          DateTime     @default(now())
-  updatedAt          DateTime     @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, createdAt])
+  @@index([userId, createdAt])
+  @@map("orders")
 }
 
 model AppSetting {
-  key         String   @id
-  value       String
-  updatedAt   DateTime @updatedAt
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+
+  @@map("app_settings")
+}
+
+model Deposit {
+  id            String   @id @default(uuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount        Decimal  @db.Decimal(24, 10)
+  currency      String   @default("MAD")
+  method        String
+  reference     String?
+  status        String   @default("PENDING")
+  adminNotes    String?
+  feeAmount     Decimal  @default(0) @db.Decimal(24, 10)
+  paidAmount    Decimal? @db.Decimal(24, 10)
+  paymentTiming String   @default("STANDARD")
+  proofFilename String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([userId, status])
+  @@map("deposits")
+}
+
+model SupportRequest {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  message   String
+  reply     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("support_requests")
 }
