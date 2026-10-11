@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 async function main(){
 const dir=mkdtempSync(path.join(tmpdir(),"smm-smoke-"));process.env.DATABASE_URL="file:"+path.join(dir,"test.db");
+const {apiOrderStatus}=await import("../src/lib/order-status");assert.equal(apiOrderStatus("PROCESSING"),"Processing");assert.equal(apiOrderStatus("IN_PROGRESS"),"In progress");assert.equal(apiOrderStatus("FAILED"),"Failed");
 const {db}=await import("../src/lib/db");const {importServices}=await import("../src/lib/sync-services");
 const user=await db.user.create({data:{name:"Test",email:"test@example.test",passwordHash:"test",balance:10}});
 const provider=await db.provider.create({data:{name:"Mock",apiUrl:"https://example.test/api",apiKey:"test",currency:"USD"}});

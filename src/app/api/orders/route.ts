@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { verifySessionToken } from "@/lib/auth";
-import { SmmClient } from "@/lib/smm-client";
+import { SmmClient, SupplierBalanceError } from "@/lib/smm-client";
 import { alertFailoverTriggered, alertOrderFailed } from "@/lib/telegram";
 
 export async function GET(req: NextRequest) {
@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
     },
   });
 
-  return NextResponse.json({ orders });
+  return NextResponse.json({ orders: session.role === "ADMIN" ? orders : orders.map(({currentProvider, currentProviderId, providerOrderId, failoverAttempted, failoverReason, charge, ...order}: any) => order) });
 }
 
 export async function POST(req: NextRequest) {
@@ -157,6 +157,7 @@ export async function POST(req: NextRequest) {
         const client = new SmmClient(mapping.primaryProvider.apiUrl, mapping.primaryProvider.apiKey);
         const res = await client.addOrder({
           service: mapping.primaryServiceId,
+          ratePer1000: service.ratePer1000,
           link: item.link,
           quantity: item.quantity,
           runs: item.runs,
@@ -164,7 +165,10 @@ export async function POST(req: NextRequest) {
         });
         providerOrderId = res.order;
       } catch (primaryErr: any) {
-        if (mapping.autoFailover && mapping.backupProvider && mapping.backupServiceId) {
+        if (primaryErr instanceof SupplierBalanceError) {
+          initialStatus = "AWAITING_FUNDS";
+          failoverReason = "En attente de traitement";
+        } else if (mapping.autoFailover && mapping.backupProvider && mapping.backupServiceId) {
           try {
             const backupClient = new SmmClient(mapping.backupProvider.apiUrl, mapping.backupProvider.apiKey);
             const backupRes = await backupClient.addOrder({
@@ -186,7 +190,7 @@ export async function POST(req: NextRequest) {
               primaryProvider: mapping.primaryProvider.name,
               backupProvider: mapping.backupProvider.name,
               reason: primaryErr.message,
-            });
+            }).catch(() => {});
           } catch (backupErr: any) {
             initialStatus = "FAILED";
             failoverAttempted = true;
@@ -197,7 +201,7 @@ export async function POST(req: NextRequest) {
               serviceName: service.name,
               provider: `${mapping.primaryProvider.name} & ${mapping.backupProvider.name}`,
               reason: failoverReason,
-            });
+            }).catch(() => {});
           }
         } else {
           initialStatus = "FAILED";
@@ -208,7 +212,7 @@ export async function POST(req: NextRequest) {
             serviceName: service.name,
             provider: mapping.primaryProvider.name,
             reason: primaryErr.message,
-          });
+          }).catch(() => {});
         }
       }
 
@@ -233,7 +237,7 @@ export async function POST(req: NextRequest) {
       });
 
       if (initialStatus === "FAILED") errors.push({ link: item.link, error: failoverReason || "Provider rejected order; wallet refunded" });
-      else createdOrders.push(order);
+      else createdOrders.push(user.role === "ADMIN" ? order : { id: order.id, status: order.status, quantity: order.quantity, customerCost: order.customerCost, createdAt: order.createdAt });
     }
 
     return NextResponse.json({

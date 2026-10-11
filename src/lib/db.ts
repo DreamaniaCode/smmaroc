@@ -564,6 +564,9 @@ export const db = {
   },
 
   order: {
+    async claimQueued(id: string) {
+      return Number(sqlite.prepare("UPDATE orders SET status = 'DISPATCHING', updatedAt = ? WHERE id = ? AND status = 'AWAITING_FUNDS' AND providerOrderId IS NULL").run(new Date().toISOString(), id).changes) === 1;
+    },
     async findMany({ where, orderBy, take, include }: any = {}) {
       let query = "SELECT * FROM orders";
       const conditions: string[] = [];

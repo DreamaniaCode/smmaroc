@@ -16,6 +16,8 @@ import {
 } from "lucide-react";
 
 export default function OrdersPage() {
+  const [isAdmin, setIsAdmin] = useState(false);
+  useEffect(() => { fetch("/api/auth/me").then(r => r.json()).then(data => setIsAdmin(data.user?.role === "ADMIN")); }, []);
   const [orders, setOrders] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
   const [statusFilter, setStatusFilter] = useState("ALL");
@@ -43,9 +45,11 @@ export default function OrdersPage() {
 
   useEffect(() => {
     fetchOrders();
+    const timer = setInterval(fetchOrders, 30000);
     fetch("/api/clients")
       .then((res) => res.json())
       .then((data) => setClients(data.clients || []));
+    return () => clearInterval(timer);
   }, [statusFilter, clientFilter]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
@@ -60,7 +64,7 @@ export default function OrdersPage() {
       const res = await fetch(`/api/orders/${orderId}/refill`, { method: "POST" });
       const data = await res.json();
       if (!res.ok) alert(data.error || "Refill failed");
-      else alert("Refill requested successfully upstream!");
+      else alert("Demande de complément enregistrée.");
     } catch (err: any) {
       alert(err.message);
     } finally {
@@ -70,14 +74,14 @@ export default function OrdersPage() {
 
   // 1-Click Cancel
   const handleCancel = async (orderId: string) => {
-    if (!confirm("Are you sure you want to request cancellation upstream?")) return;
+    if (!confirm("Voulez-vous demander l’annulation de cette commande ?")) return;
     setActionLoading(`cancel-${orderId}`);
     try {
       const res = await fetch(`/api/orders/${orderId}/cancel`, { method: "POST" });
       const data = await res.json();
       if (!res.ok) alert(data.error || "Cancel failed");
       else {
-        alert("Cancel request sent upstream!");
+        alert("Demande d’annulation enregistrée.");
         fetchOrders();
       }
     } catch (err: any) {
@@ -118,14 +122,17 @@ export default function OrdersPage() {
       case "COMPLETED":
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-            <CheckCircle2 className="w-3 h-3" /> Completed
+            <CheckCircle2 className="w-3 h-3" /> Terminée
           </span>
         );
+      case "AWAITING_FUNDS":
+      case "DISPATCHING":
+      case "REVIEW_REQUIRED":
       case "IN_PROGRESS":
       case "PROCESSING":
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20">
-            <Clock className="w-3 h-3 animate-pulse" /> {status}
+            <Clock className="w-3 h-3 animate-pulse" /> {status === "AWAITING_FUNDS" ? "En attente de traitement" : status === "REVIEW_REQUIRED" ? "Vérification nécessaire" : status === "DISPATCHING" || status === "PROCESSING" ? "En traitement" : status === "IN_PROGRESS" ? "En cours" : status}
           </span>
         );
       case "PARTIAL":
@@ -164,7 +171,7 @@ export default function OrdersPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-white">Orders Desk</h1>
           <p className="text-sm text-slate-400 mt-1">
-            Real-time status tracking, 1-click refills, and client delivery reports.
+            Suivez l’avancement de vos commandes.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -204,7 +211,7 @@ export default function OrdersPage() {
             onChange={(e) => setStatusFilter(e.target.value)}
             className="px-3 py-2 rounded-xl bg-slate-950/60 border border-slate-800 text-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-brand-500"
           >
-            <option value="ALL">All Statuses</option>
+            <option value="ALL">All Statuses</option><option value="AWAITING_FUNDS">En attente de traitement</option><option value="REVIEW_REQUIRED">Vérification nécessaire</option>
             <option value="PROCESSING">Processing</option>
             <option value="IN_PROGRESS">In Progress</option>
             <option value="COMPLETED">Completed</option>
@@ -240,7 +247,7 @@ export default function OrdersPage() {
                 <th className="p-4">Service & Link</th>
                 <th className="p-4">Qty</th>
                 <th className="p-4">Counts</th>
-                <th className="p-4">Provider / Remote ID</th>
+                {isAdmin && <th className="p-4">Provider / Remote ID</th>}
                 <th className="p-4">Status</th>
                 <th className="p-4 text-right">Actions</th>
               </tr>
@@ -248,7 +255,7 @@ export default function OrdersPage() {
             <tbody className="divide-y divide-slate-800/60">
               {orders.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="p-8 text-center text-slate-500">
+                  <td colSpan={isAdmin ? 8 : 7} className="p-8 text-center text-slate-500">
                     No orders found matching the filter criteria.
                   </td>
                 </tr>
@@ -294,7 +301,7 @@ export default function OrdersPage() {
                       <div>Remains: {o.remains !== null ? o.remains : "—"}</div>
                     </td>
 
-                    <td className="p-4 font-sans">
+{isAdmin && (                    <td className="p-4 font-sans">
                       <span className="text-slate-300 font-medium">
                         {o.currentProvider?.name || "Pending Routing"}
                       </span>
@@ -303,10 +310,10 @@ export default function OrdersPage() {
                           ID: #{o.providerOrderId}
                         </p>
                       )}
-                    </td>
+                    </td>)}
 
                     <td className="p-4 font-sans">
-                      {getStatusBadge(o.status, o.failoverAttempted)}
+                      {getStatusBadge(o.status, isAdmin && o.failoverAttempted)}
                     </td>
 
                     <td className="p-4 font-sans text-right">

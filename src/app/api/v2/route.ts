@@ -1,6 +1,7 @@
+import { apiOrderStatus } from "@/lib/order-status";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { SmmClient } from "@/lib/smm-client";
+import { SmmClient, SupplierBalanceError } from "@/lib/smm-client";
 import { alertFailoverTriggered, alertOrderFailed } from "@/lib/telegram";
 
 export async function POST(req: NextRequest) {
@@ -120,12 +121,16 @@ export async function POST(req: NextRequest) {
         const client = new SmmClient(mapping.primaryProvider.apiUrl, mapping.primaryProvider.apiKey);
         const res = await client.addOrder({
           service: mapping.primaryServiceId,
+          ratePer1000: service.ratePer1000,
           link,
           quantity,
         });
         providerOrderId = res.order;
       } catch (err: any) {
-        if (mapping.autoFailover && mapping.backupProvider && mapping.backupServiceId) {
+        if (err instanceof SupplierBalanceError) {
+          initialStatus = "AWAITING_FUNDS";
+          failoverReason = "En attente de traitement";
+        } else if (mapping.autoFailover && mapping.backupProvider && mapping.backupServiceId) {
           try {
             const backupClient = new SmmClient(mapping.backupProvider.apiUrl, mapping.backupProvider.apiKey);
             const bRes = await backupClient.addOrder({
@@ -145,7 +150,7 @@ export async function POST(req: NextRequest) {
               primaryProvider: mapping.primaryProvider.name,
               backupProvider: mapping.backupProvider.name,
               reason: err.message,
-            });
+            }).catch(() => {});
           } catch (bErr: any) {
             initialStatus = "FAILED";
             failoverAttempted = true;
@@ -195,7 +200,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({
         charge: (order.customerCost || 0.0).toFixed(2),
         start_count: order.startCount !== null ? String(order.startCount) : "0",
-        status: order.status === "PROCESSING" ? "In progress" : order.status.charAt(0) + order.status.slice(1).toLowerCase(),
+        status: apiOrderStatus(order.status),
         remains: order.remains !== null ? String(order.remains) : "0",
         currency: user.currency || "MAD",
       });

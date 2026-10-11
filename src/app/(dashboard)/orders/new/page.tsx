@@ -134,7 +134,7 @@ export default function NewOrderPage() {
       setResult({
         success: true,
         count: 1,
-        message: `Order dispatched successfully! ${totalCost.toFixed(2)} ${userCurrency} deducted.`,
+        message: data.orders?.[0]?.status === "AWAITING_FUNDS" ? (user?.role === "ADMIN" ? "Commande enregistrée, en attente de traitement." : `Commande enregistrée, en attente de traitement. ${totalCost.toFixed(2)} ${userCurrency} débités. Aucun nouveau débit lors de son envoi.`) : user?.role === "ADMIN" ? "Commande enregistrée. Portefeuille administrateur non débité." : `Commande enregistrée. ${totalCost.toFixed(2)} ${userCurrency} débités du portefeuille.`,
       });
       setLink("");
 

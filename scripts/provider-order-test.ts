@@ -1,0 +1,34 @@
+import {mkdtempSync} from "node:fs";
+import {tmpdir} from "node:os";
+import path from "node:path";
+import {NextRequest} from "next/server";
+import assert from "node:assert/strict";
+import { SmmClient } from "../src/lib/smm-client";
+async function main() {
+ const client = new SmmClient("https://example.test/api", "test"); let balance = 0; let adds = 0; let response: any = {order: 123};
+ (client as any).post = async (params: any) => { if(params.action === "balance") return {balance, currency:"USD"}; if(params.action === "services") return [{service:1,rate:"2"}]; adds++; return response; };
+ const params = {service:1,link:"https://example.test/profile",quantity:1000,ratePer1000:2};
+ await assert.rejects(()=>client.addOrder(params),/Solde fournisseur insuffisant/); assert.equal(adds,0);
+ balance=1; await assert.rejects(()=>client.addOrder(params),/Solde fournisseur insuffisant/); assert.equal(adds,0);
+ balance=3; await assert.rejects(()=>client.addOrder({...params,runs:2}),/Solde fournisseur insuffisant/); assert.equal(adds,0);
+ assert.deepEqual(await client.addOrder(params),{order:"123"}); assert.equal(adds,1);
+ response={error:"Not enough funds"}; await assert.rejects(()=>client.addOrder(params),/Not enough funds/);
+ response={order:"pending"}; await assert.rejects(()=>client.addOrder(params),/No order ID/);
+ balance=1; await assert.rejects(()=>client.addOrder({...params,ratePer1000:undefined}),/Solde fournisseur insuffisant/);
+ process.env.DATABASE_URL = "file:" + path.join(mkdtempSync(path.join(tmpdir(),"smm-provider-test-")),"test.db");
+ const {db}=await import("../src/lib/db"); const {POST}=await import("../src/app/api/v2/route");
+ const user=await db.user.create({data:{name:"Test",email:"test@example.test",passwordHash:"test",balance:100}});
+ const provider=await db.provider.create({data:{name:"Test",apiUrl:"https://example.test/api",apiKey:"test",currency:"USD"}});
+ const service=await db.service.create({data:{name:"Test",category:"Test",minQuantity:1,maxQuantity:10000,ratePer1000:2,sellingRatePer1000:36,mapping:{create:{primaryProviderId:provider.id,primaryServiceId:"1"}}}});
+ (SmmClient.prototype as any).post=(client as any).post; balance=0;
+ const rejected=await POST(new NextRequest("http://localhost/api/v2",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({key:user.apiKey,action:"add",service:service.id,link:params.link,quantity:1000})}));
+ assert.equal(rejected.status,200); const accepted=await rejected.json(); assert.ok(accepted.order);assert.equal((await db.user.findUnique({where:{id:user.id}})).balance,64);
+ const queued=(await db.order.findMany())[0];assert.equal(queued.status,"AWAITING_FUNDS");assert.equal(queued.providerOrderId,null);
+ const {dispatchQueuedOrders}=await import("../src/lib/queued-orders"); const before=adds;
+ await dispatchQueuedOrders();assert.equal(adds,before);assert.equal((await db.order.findUnique({where:{id:queued.id}})).status,"AWAITING_FUNDS");
+ balance=10;response={order:456}; await Promise.all([dispatchQueuedOrders(),dispatchQueuedOrders()]);assert.equal(adds,before+1);
+ const sent=await db.order.findUnique({where:{id:queued.id}});assert.equal(sent.status,"PROCESSING");assert.equal(sent.providerOrderId,"456");assert.equal((await db.user.findUnique({where:{id:user.id}})).balance,64);
+ await dispatchQueuedOrders();assert.equal(adds,before+1);
+ console.log("PASS: zero/insufficient supplier balance prevents dispatch, drip cost checked, provider errors and invalid IDs rejected.");
+}
+main().catch(e=>{console.error(e);process.exitCode=1});

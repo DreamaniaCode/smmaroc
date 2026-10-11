@@ -25,3 +25,5 @@ Dans Paramètres, saisir les coordonnées réelles des méthodes de paiement. Un
 ## Vérification
 
 npx tsx scripts/smoke-test.ts utilise une base temporaire pour vérifier un import de 125 services, une nouvelle synchronisation, les prix de vente, les débits et les dépôts. Aucun achat fournisseur n’est effectué pendant les tests.
+
+Les commandes payées sans solde fournisseur sont conservées en attente de traitement. Le worker les envoie après recharge, sans second débit client. Vérification toutes les 60 secondes : `npm run worker` (worker complet), ou `npx tsx scripts/queue-worker.ts` (file uniquement ; ne pas lancer les deux). Un envoi ambigu reste à vérifier pour éviter un doublon.

@@ -1,3 +1,4 @@
+import { dispatchQueuedOrders } from "../lib/queued-orders";
 import "dotenv/config";
 import { db } from "../lib/db";
 import { SmmClient } from "../lib/smm-client";
@@ -170,13 +171,14 @@ async function startWorker() {
   console.log("[WORKER] Worker initialized. Starting polling timers...");
 
   // Run initial checks
+  await dispatchQueuedOrders();
   await syncOrderStatuses();
   await monitorProviderBalances();
   await pollGoogleSheetForNewOrders();
 
   // Schedule intervals
   // Order status sync: every 60 seconds
-  setInterval(syncOrderStatuses, 60 * 1000);
+  setInterval(async () => { await dispatchQueuedOrders(); await syncOrderStatuses(); }, 60 * 1000);
 
   // Google Sheets intake sync: every 2 minutes
   setInterval(pollGoogleSheetForNewOrders, 2 * 60 * 1000);
