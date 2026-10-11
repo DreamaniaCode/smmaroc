@@ -125,10 +125,10 @@ export default function AdminDepositsPage() {
                   </td>
                   <td className="p-4 font-bold text-slate-200">{d.method}</td>
                   <td className="p-4 font-mono text-base font-black text-emerald-400">
-                    +{d.amount.toFixed(2)} {d.currency}
+                    +{d.amount.toFixed(2)} {d.currency}<span className="block text-xs">À vérifier : {(d.paidAmount ?? d.amount).toFixed(2)} {d.currency} · Frais : {(d.feeAmount ?? 0).toFixed(2)}</span>
                   </td>
                   <td className="p-4 font-mono text-slate-300 max-w-xs truncate">
-                    {d.reference || "None provided"}
+                    {d.reference || "None provided"}{d.proofFilename && <a href={`/api/deposits/${d.id}/proof`} className="block underline mt-2">Télécharger le justificatif</a>}<span className="block text-xs">{d.paymentTiming === "INSTANT" ? "Virement instantané déclaré" : "Paiement classique"}</span>
                   </td>
                   <td className="p-4 text-slate-400">
                     {new Date(d.createdAt).toLocaleDateString()} {new Date(d.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}

@@ -33,7 +33,7 @@ export default function SettingsPage() {
       .then((data) => {
         if (data.error) throw new Error(data.error);
         const s = data.settings || {};
-        setPayments(Object.fromEntries(["CIH_BANK", "ATTIJARIWAFA", "CASH_PLUS", "USDT_TRC20"].map(m => [m, s["PAYMENT_" + m] || ""])));
+        setPayments(Object.fromEntries(["BANK_TRANSFER", "BINANCE_PAY", "PAYPAL"].map(m => [m, s["PAYMENT_" + m] ?? ({BANK_TRANSFER:"007 450 0013991700300104 14",BINANCE_PAY:"13110721",PAYPAL:"transwbox2@gmail.com"} as Record<string,string>)[m]])));
         if (s.TELEGRAM_BOT_TOKEN) setTelegramToken(s.TELEGRAM_BOT_TOKEN);
         if (s.TELEGRAM_CHAT_ID) setTelegramChatId(s.TELEGRAM_CHAT_ID);
         if (s.GOOGLE_SPREADSHEET_ID) setSheetId(s.GOOGLE_SPREADSHEET_ID);
@@ -109,7 +109,7 @@ export default function SettingsPage() {
         </div>
       )}
 
-      <section className="p-6 rounded-2xl glass-panel space-y-5"><h2 className="font-bold text-white">Coordonnées de paiement</h2><p className="text-sm text-slate-400">Renseignez les coordonnées réelles, le bénéficiaire et les instructions. Un champ vide désactive ce moyen de paiement.</p>{["CIH_BANK", "ATTIJARIWAFA", "CASH_PLUS", "USDT_TRC20"].map(method => <div key={method} className="space-y-2"><label className="block text-xs font-bold">{method}</label><textarea aria-label={method} value={payments[method] || ""} onChange={e => setPayments({ ...payments, [method]: e.target.value })} rows={3} className="w-full rounded-xl border p-3 text-sm" placeholder="Bénéficiaire, RIB ou adresse et instructions…"/><button disabled={savingKey !== null} onClick={() => saveSetting("PAYMENT_" + method, payments[method] || "")} className="primary-gradient px-4 py-2 rounded-xl text-xs">Enregistrer</button></div>)}</section>
+      <section className="p-6 rounded-2xl glass-panel space-y-5"><h2 className="font-bold text-white">Coordonnées de paiement</h2><p className="text-sm text-slate-400">Renseignez les coordonnées réelles, le bénéficiaire et les instructions. Un champ vide désactive ce moyen de paiement.</p>{["BANK_TRANSFER", "BINANCE_PAY", "PAYPAL"].map(method => <div key={method} className="space-y-2"><label className="block text-xs font-bold">{method}</label><textarea aria-label={method} value={payments[method] || ""} onChange={e => setPayments({ ...payments, [method]: e.target.value })} rows={3} className="w-full rounded-xl border p-3 text-sm" placeholder="Bénéficiaire, RIB ou adresse et instructions…"/><button disabled={savingKey !== null} onClick={() => saveSetting("PAYMENT_" + method, payments[method] || "")} className="primary-gradient px-4 py-2 rounded-xl text-xs">Enregistrer</button></div>)}</section>
       {/* 1. Telegram Bot Integration */}
       <div className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800/80 space-y-6">
         <div className="flex items-center gap-3">

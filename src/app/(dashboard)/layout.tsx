@@ -13,6 +13,7 @@ import {
   LogOut,
   Wallet,
   Shield,
+  Send,
   Zap,
   CreditCard,
   Terminal,
@@ -60,7 +61,8 @@ export default function DashboardLayout({
     { label: "Services", href: "/services", icon: Layers },
     { label: "New Order", href: "/orders/new", icon: PlusCircle, highlight: true },
     { label: "My Orders", href: "/orders", icon: ListOrdered },
-    { label: "Add Funds (CIH/Crypto)", href: "/add-funds", icon: CreditCard },
+    { label: "Ajouter des fonds", href: "/add-funds", icon: CreditCard },
+    { label: "Support", href: "/support", icon: Send },
     { label: "Reseller API v2", href: "/api-docs", icon: Terminal },
   ];
 
@@ -72,6 +74,7 @@ export default function DashboardLayout({
     { label: "Services & Routing", href: "/services", icon: Layers },
     { label: "Providers & APIs", href: "/providers", icon: Server },
     { label: "Clients", href: "/clients", icon: Users },
+    { label: "Support clients", href: "/support", icon: Send },
     { label: "Settings & Alerts", href: "/settings", icon: Settings },
   ];
 

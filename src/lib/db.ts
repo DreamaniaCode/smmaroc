@@ -149,6 +149,9 @@ try {
   sqlite.exec("ALTER TABLE orders ADD COLUMN customerCost REAL DEFAULT 0.0;");
 } catch {}
 
+const depositColumns = new Set((sqlite.prepare("PRAGMA table_info(deposits)").all() as any[]).map(c=>c.name));
+for(const [name,type] of Object.entries({feeAmount:"REAL DEFAULT 0",paidAmount:"REAL",paymentTiming:"TEXT DEFAULT 'STANDARD'",proofFilename:"TEXT"})) {if(!depositColumns.has(name)) sqlite.exec(`ALTER TABLE deposits ADD COLUMN ${name} ${type}`);}
+sqlite.exec("CREATE TABLE IF NOT EXISTS support_requests (id TEXT PRIMARY KEY, userId TEXT NOT NULL REFERENCES users(id), message TEXT NOT NULL, reply TEXT, createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL)");
 export const db = {
   async debitWallet(userId: string, amount: number) {
     if (!Number.isFinite(amount) || amount < 0) throw new Error("Invalid amount");
@@ -303,8 +306,8 @@ export const db = {
       const id = data.id || crypto.randomUUID();
       const now = new Date().toISOString();
       sqlite.prepare(`
-        INSERT INTO deposits (id, userId, amount, currency, method, reference, status, adminNotes, createdAt, updatedAt)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO deposits (id, userId, amount, currency, method, reference, status, adminNotes, createdAt, updatedAt, feeAmount, paidAmount, paymentTiming, proofFilename)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         id,
         data.userId,
@@ -315,7 +318,11 @@ export const db = {
         data.status || "PENDING",
         data.adminNotes || null,
         now,
-        now
+        now,
+        data.feeAmount ?? 0,
+        data.paidAmount ?? data.amount,
+        data.paymentTiming ?? "STANDARD",
+        data.proofFilename ?? null
       );
       return this.findUnique({ where: { id } });
     },
@@ -775,6 +782,11 @@ export const db = {
     },
   },
 
+  support: {
+    async findMany(userId?:string) { return sqlite.prepare("SELECT s.*, u.email FROM support_requests s JOIN users u ON u.id=s.userId"+(userId?" WHERE s.userId=?":"")+" ORDER BY s.createdAt DESC").all(...(userId?[userId]:[])); },
+    async create(userId:string,message:string) {const id=crypto.randomUUID(),now=new Date().toISOString();sqlite.prepare("INSERT INTO support_requests(id,userId,message,createdAt,updatedAt) VALUES(?,?,?,?,?)").run(id,userId,message,now,now);return {id};},
+    async reply(id:string,reply:string) {return sqlite.prepare("UPDATE support_requests SET reply=?,updatedAt=? WHERE id=?").run(reply,new Date().toISOString(),id).changes;}
+  },
   appSetting: {
     async findMany() {
       return sqlite.prepare("SELECT * FROM app_settings").all() as any[];
