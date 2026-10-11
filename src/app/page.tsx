@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Zap,
   ShieldCheck,
@@ -21,6 +22,7 @@ import {
   ChevronRight,
   Flame,
   Globe2,
+  Send,
 } from "lucide-react";
 
 export default function LandingPage() {
@@ -30,7 +32,7 @@ export default function LandingPage() {
   const [currency, setCurrency] = useState<"MAD" | "USD">("MAD");
   const [user, setUser] = useState<any>(null);
 
-  // Live Simulator State (Interactive Hero Card)
+  // Live Simulator State
   const [simPlatform, setSimPlatform] = useState<"instagram" | "tiktok" | "youtube" | "telegram">("instagram");
   const [simQty, setSimQty] = useState(2500);
 
@@ -65,35 +67,48 @@ export default function LandingPage() {
     return `${rateInMad.toFixed(2)} MAD`;
   };
 
-  // Simulator pricing
-  const simRates: Record<string, { name: string; rate: number; speed: string }> = {
-    instagram: { name: "Instagram Real Followers [HQ - 30D Refill]", rate: 38, speed: "5K - 15K / Day" },
-    tiktok: { name: "TikTok High Retention Views [Instant Viral Boost]", rate: 12, speed: "50K - 100K / Day" },
-    youtube: { name: "YouTube Monetization WatchTime & Views", rate: 27, speed: "2K - 5K / Day" },
-    telegram: { name: "Telegram Channel Members [Non Drop - 100% Active]", rate: 30, speed: "10K / Day" },
+  const simRates: Record<string, { name: string; rate: number; speed: string; icon: string }> = {
+    instagram: { name: "Instagram Real Active Followers [HQ - 30D Refill]", rate: 38, speed: "5K - 15K / Day", icon: "📸" },
+    tiktok: { name: "TikTok Viral Views & WatchTime [Instant Delivery]", rate: 12, speed: "50K - 100K / Day", icon: "🎵" },
+    youtube: { name: "YouTube High Retention Views & Subscribers", rate: 27, speed: "2K - 5K / Day", icon: "▶️" },
+    telegram: { name: "Telegram Channel Members [100% Non-Drop]", rate: 30, speed: "10K / Day", icon: "✈️" },
   };
 
   const simSelected = simRates[simPlatform];
   const simTotal = (simQty / 1000) * simSelected.rate;
 
-  return (
-    <div className="min-h-screen bg-[#06080F] text-slate-100 selection:bg-emerald-500 selection:text-white relative">
-      {/* Ambient background mesh */}
-      <div className="ambient-mesh" />
+  const liveTickerOrders = [
+    "🔥 Order #9421 • 5,000 Instagram Followers delivered in Casablanca",
+    "⚡ Order #9422 • 20,000 TikTok Views completed in Rabat",
+    "🇲🇦 Deposit #412 • 1,000 MAD approved via CIH Bank",
+    "🚀 Order #9423 • 2,500 YouTube Views delivered in Marrakech",
+    "✨ Deposit #413 • 50 USDT approved via Binance Pay",
+    "✈️ Order #9424 • 1,000 Telegram Members added in Tangier",
+  ];
 
-      {/* Floating Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 px-4 sm:px-8 pt-4">
-        <div className="max-w-7xl mx-auto h-16 sm:h-20 glass-card rounded-2xl sm:rounded-3xl px-6 flex items-center justify-between border border-white/10 backdrop-blur-2xl">
+  return (
+    <div className="min-h-screen bg-[#05070E] text-slate-100 selection:bg-emerald-500 selection:text-white relative overflow-hidden">
+      {/* Dynamic Animated Aurora Mesh */}
+      <div className="aurora-bg" />
+
+      {/* Floating Animated Header */}
+      <motion.header
+        initial={{ y: -40, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+        className="fixed top-0 left-0 right-0 z-50 px-4 sm:px-8 pt-4"
+      >
+        <div className="max-w-7xl mx-auto h-16 sm:h-20 glass-panel rounded-2xl sm:rounded-3xl px-6 flex items-center justify-between border border-white/10 backdrop-blur-2xl shadow-2xl">
           {/* Logo */}
-          <a href="/" className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl primary-gradient flex items-center justify-center shadow-lg shadow-emerald-500/25">
+          <a href="/" className="flex items-center gap-3 group">
+            <div className="w-10 h-10 rounded-2xl emerald-gradient flex items-center justify-center emerald-gradient-glow group-hover:scale-105 transition-transform duration-300">
               <Zap className="w-5 h-5 text-white" />
             </div>
             <div>
               <div className="flex items-center gap-1.5">
                 <span className="text-xl font-black tracking-tight text-white">SMM</span>
                 <span className="text-xl font-black tracking-tight text-emerald-400">aroc</span>
-                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 font-bold border border-emerald-500/30">
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 font-bold border border-emerald-500/30">
                   🇲🇦 MA
                 </span>
               </div>
@@ -103,23 +118,23 @@ export default function LandingPage() {
             </div>
           </a>
 
-          {/* Navigation Links */}
+          {/* Navigation */}
           <nav className="hidden lg:flex items-center gap-8 text-sm font-semibold text-slate-300">
-            <a href="#services" className="hover:text-emerald-400 transition">Services Catalog</a>
-            <a href="#how-it-works" className="hover:text-emerald-400 transition">How It Works</a>
-            <a href="#payments" className="hover:text-emerald-400 transition">Moroccan Payments</a>
-            <a href="/api-docs" className="hover:text-emerald-400 transition">Reseller API</a>
+            <a href="#services" className="hover:text-emerald-400 transition-colors">Services Catalog</a>
+            <a href="#how-it-works" className="hover:text-emerald-400 transition-colors">How It Works</a>
+            <a href="#payments" className="hover:text-emerald-400 transition-colors">Moroccan Payments</a>
+            <a href="/api-docs" className="hover:text-emerald-400 transition-colors">Reseller API</a>
           </nav>
 
-          {/* Right Action Tools */}
+          {/* Actions */}
           <div className="flex items-center gap-3">
-            {/* Currency Switcher */}
-            <div className="flex items-center bg-dark-900 border border-dark-700 rounded-xl p-1 text-xs font-bold">
+            {/* Currency Pill */}
+            <div className="flex items-center bg-slate-900/90 border border-white/10 rounded-xl p-1 text-xs font-bold shadow-inner">
               <button
                 onClick={() => setCurrency("MAD")}
-                className={`px-2.5 py-1 rounded-lg transition ${
+                className={`px-2.5 py-1 rounded-lg transition-all ${
                   currency === "MAD"
-                    ? "bg-emerald-600 text-white shadow-sm"
+                    ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/30"
                     : "text-slate-400 hover:text-white"
                 }`}
               >
@@ -127,9 +142,9 @@ export default function LandingPage() {
               </button>
               <button
                 onClick={() => setCurrency("USD")}
-                className={`px-2.5 py-1 rounded-lg transition ${
+                className={`px-2.5 py-1 rounded-lg transition-all ${
                   currency === "USD"
-                    ? "bg-emerald-600 text-white shadow-sm"
+                    ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/30"
                     : "text-slate-400 hover:text-white"
                 }`}
               >
@@ -138,44 +153,58 @@ export default function LandingPage() {
             </div>
 
             {user ? (
-              <a
+              <motion.a
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
                 href="/orders/new"
-                className="px-5 py-2.5 rounded-xl primary-gradient text-white text-xs font-bold shadow-lg shadow-emerald-600/25 flex items-center gap-2 hover:opacity-95 transition"
+                className="px-5 py-2.5 rounded-xl emerald-gradient text-white text-xs font-bold emerald-gradient-glow flex items-center gap-2"
               >
                 Dashboard <ArrowRight className="w-4 h-4" />
-              </a>
+              </motion.a>
             ) : (
               <div className="flex items-center gap-2">
                 <a
                   href="/login"
-                  className="hidden sm:inline-flex px-4 py-2 rounded-xl bg-dark-900/80 hover:bg-dark-800 text-slate-200 text-xs font-semibold border border-white/5 transition"
+                  className="hidden sm:inline-flex px-4 py-2 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-slate-200 text-xs font-semibold border border-white/5 transition"
                 >
                   Sign In
                 </a>
-                <a
+                <motion.a
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
                   href="/register"
-                  className="px-5 py-2.5 rounded-xl primary-gradient text-white text-xs font-bold shadow-lg shadow-emerald-600/25 flex items-center gap-1.5 hover:opacity-95 transition"
+                  className="px-5 py-2.5 rounded-xl emerald-gradient text-white text-xs font-bold emerald-gradient-glow flex items-center gap-1.5 shadow-lg"
                 >
-                  Create Account <Sparkles className="w-3.5 h-3.5" />
-                </a>
+                  Get Started <Sparkles className="w-3.5 h-3.5" />
+                </motion.a>
               </div>
             )}
           </div>
         </div>
-      </header>
+      </motion.header>
 
-      {/* Hero Section (2-Column Dribbble Layout) */}
-      <section className="relative pt-36 sm:pt-44 pb-20 px-6 max-w-7xl mx-auto">
+      {/* Hero Section */}
+      <section className="relative pt-36 sm:pt-48 pb-16 px-6 max-w-7xl mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
-          {/* Left Column: Pitch & CTA */}
-          <div className="lg:col-span-7 space-y-6 text-center lg:text-left">
+          {/* Left Column: Thesis & Staggered Reveal */}
+          <motion.div
+            initial={{ opacity: 0, x: -30 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.8, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+            className="lg:col-span-7 space-y-6 text-center lg:text-left"
+          >
             {/* Live Ticker Chip */}
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+              className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold shadow-lg shadow-emerald-500/10"
+            >
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
               <span>9,100+ Live Services • Automated 24/7 Dispatch</span>
-            </div>
+            </motion.div>
 
-            <h1 className="text-4xl sm:text-6xl font-black tracking-tight text-white leading-[1.1]">
+            <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight text-white leading-[1.08]">
               Scale Your Social Presence{" "}
               <span className="text-gradient-emerald">
                 Faster Than Ever.
@@ -183,39 +212,43 @@ export default function LandingPage() {
             </h1>
 
             <p className="text-base sm:text-lg text-slate-400 max-w-xl leading-relaxed mx-auto lg:mx-0">
-              The premier automated SMM panel built for Morocco. Direct wholesale connections, instant delivery, <b>CIH Bank & Attijariwafa</b> local deposits, and automated failover backup.
+              The premier automated SMM platform built for Morocco. Direct wholesale connections, instant delivery, <b>CIH Bank & Attijariwafa</b> zero-fee local deposits, and automated failover backup.
             </p>
 
             {/* CTAs */}
             <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 pt-2">
-              <a
+              <motion.a
+                whileHover={{ scale: 1.04 }}
+                whileTap={{ scale: 0.96 }}
                 href="/register"
-                className="w-full sm:w-auto px-8 py-4 rounded-2xl primary-gradient text-white font-bold text-sm shadow-xl shadow-emerald-500/25 flex items-center justify-center gap-2 hover:opacity-95 transition"
+                className="w-full sm:w-auto px-8 py-4 rounded-2xl emerald-gradient text-white font-bold text-sm emerald-gradient-glow flex items-center justify-center gap-2 shadow-2xl"
               >
-                Start Growing Today <ArrowRight className="w-4 h-4" />
-              </a>
-              <a
+                Start Growing Now <ArrowRight className="w-4 h-4" />
+              </motion.a>
+              <motion.a
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
                 href="#services"
-                className="w-full sm:w-auto px-7 py-4 rounded-2xl bg-dark-900/90 hover:bg-dark-800 text-slate-200 font-semibold text-sm border border-white/10 transition flex items-center justify-center gap-2"
+                className="w-full sm:w-auto px-7 py-4 rounded-2xl bg-slate-900/90 hover:bg-slate-800 text-slate-200 font-semibold text-sm border border-white/10 transition flex items-center justify-center gap-2 shadow-lg"
               >
                 <Search className="w-4 h-4 text-emerald-400" /> Explore Catalog & Prices
-              </a>
+              </motion.a>
             </div>
 
-            {/* Social Proof Cluster */}
+            {/* Social Proof */}
             <div className="pt-6 flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 border-t border-white/5">
               <div className="flex -space-x-3">
-                <div className="w-10 h-10 rounded-full border-2 border-dark-950 bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-xs font-bold text-white shadow-md">
+                <div className="w-10 h-10 rounded-full border-2 border-slate-950 bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-xs font-bold text-white shadow-md">
                   YA
                 </div>
-                <div className="w-10 h-10 rounded-full border-2 border-dark-950 bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-xs font-bold text-white shadow-md">
+                <div className="w-10 h-10 rounded-full border-2 border-slate-950 bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-xs font-bold text-white shadow-md">
                   SM
                 </div>
-                <div className="w-10 h-10 rounded-full border-2 border-dark-950 bg-gradient-to-tr from-pink-500 to-rose-400 flex items-center justify-center text-xs font-bold text-white shadow-md">
+                <div className="w-10 h-10 rounded-full border-2 border-slate-950 bg-gradient-to-tr from-pink-500 to-rose-400 flex items-center justify-center text-xs font-bold text-white shadow-md">
                   KB
                 </div>
-                <div className="w-10 h-10 rounded-full border-2 border-dark-950 bg-dark-800 text-emerald-400 flex items-center justify-center text-xs font-bold shadow-md">
-                  +25k
+                <div className="w-10 h-10 rounded-full border-2 border-slate-950 bg-slate-800 text-emerald-400 flex items-center justify-center text-xs font-bold shadow-md">
+                  +28k
                 </div>
               </div>
               <div className="text-center sm:text-left text-xs">
@@ -228,15 +261,24 @@ export default function LandingPage() {
                 <p className="text-slate-400 mt-0.5">Trusted by 28,000+ creators, influencers & marketing agencies in Morocco</p>
               </div>
             </div>
-          </div>
+          </motion.div>
 
-          {/* Right Column: Interactive Live Order Simulator (Growfollows Dribbble Widget) */}
-          <div className="lg:col-span-5 relative">
-            {/* Glow Aura */}
-            <div className="absolute -inset-1 rounded-3xl bg-gradient-to-r from-emerald-500 to-indigo-600 opacity-20 blur-2xl pointer-events-none" />
+          {/* Right Column: Floating 3D Live Order Simulator */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            className="lg:col-span-5 relative"
+          >
+            {/* Ambient Multi-glow Aura */}
+            <div className="absolute -inset-2 rounded-3xl bg-gradient-to-r from-emerald-500/30 to-indigo-600/30 blur-2xl pointer-events-none" />
 
-            <div className="relative glass-card rounded-3xl p-6 sm:p-7 border border-white/10 shadow-card space-y-5">
-              {/* Card Header: Platform Selector Pills */}
+            <motion.div
+              animate={{ y: [0, -8, 0] }}
+              transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+              className="relative glass-panel rounded-3xl p-6 sm:p-7 border border-white/10 shadow-2xl space-y-5"
+            >
+              {/* Header */}
               <div className="flex items-center justify-between border-b border-white/5 pb-4">
                 <span className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5 text-emerald-400" /> Live Order Simulator
@@ -246,37 +288,46 @@ export default function LandingPage() {
                 </span>
               </div>
 
-              {/* Platform Tabs */}
+              {/* Platform Selector Tabs */}
               <div className="grid grid-cols-4 gap-2">
                 {[
-                  { id: "instagram", name: "Instagram", color: "from-pink-500 to-purple-600" },
-                  { id: "tiktok", name: "TikTok", color: "from-cyan-400 to-slate-900" },
-                  { id: "youtube", name: "YouTube", color: "from-red-500 to-rose-700" },
-                  { id: "telegram", name: "Telegram", color: "from-sky-400 to-blue-600" },
-                ].map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => setSimPlatform(p.id as any)}
-                    className={`p-2.5 rounded-xl text-center text-xs font-bold transition flex flex-col items-center gap-1 border ${
-                      simPlatform === p.id
-                        ? "bg-dark-800 border-emerald-500 text-white shadow-md"
-                        : "bg-dark-900/60 border-white/5 text-slate-400 hover:text-white"
-                    }`}
-                  >
-                    <div className={`w-3.5 h-3.5 rounded-full bg-gradient-to-tr ${p.color}`} />
-                    <span>{p.name}</span>
-                  </button>
-                ))}
+                  { id: "instagram", name: "Instagram", icon: "📸" },
+                  { id: "tiktok", name: "TikTok", icon: "🎵" },
+                  { id: "youtube", name: "YouTube", icon: "▶️" },
+                  { id: "telegram", name: "Telegram", icon: "✈️" },
+                ].map((p) => {
+                  const isActive = simPlatform === p.id;
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => setSimPlatform(p.id as any)}
+                      className={`relative p-2.5 rounded-2xl text-center text-xs font-bold transition flex flex-col items-center gap-1 border ${
+                        isActive
+                          ? "bg-slate-800 border-emerald-500 text-white shadow-lg shadow-emerald-500/15"
+                          : "bg-slate-900/60 border-white/5 text-slate-400 hover:text-white"
+                      }`}
+                    >
+                      <span className="text-base">{p.icon}</span>
+                      <span>{p.name}</span>
+                      {isActive && (
+                        <motion.div
+                          layoutId="simPlatformTab"
+                          className="absolute inset-0 rounded-2xl border-2 border-emerald-500 pointer-events-none"
+                        />
+                      )}
+                    </button>
+                  );
+                })}
               </div>
 
-              {/* Simulated Service */}
-              <div className="p-3 rounded-xl bg-dark-950/70 border border-white/5 space-y-1">
+              {/* Active Service Card */}
+              <div className="p-3.5 rounded-2xl bg-slate-950/80 border border-white/5 space-y-1">
                 <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Service Selected:</span>
                 <p className="text-xs font-bold text-slate-200">{simSelected.name}</p>
                 <div className="flex items-center gap-3 text-[11px] text-emerald-400 pt-1">
                   <span>⚡ Speed: {simSelected.speed}</span>
-                  <span>• 30-Day Refill</span>
+                  <span>• 30-Day Auto Refill</span>
                 </div>
               </div>
 
@@ -287,7 +338,7 @@ export default function LandingPage() {
                   type="text"
                   readOnly
                   value={`https://${simPlatform}.com/your_profile`}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-dark-950 border border-white/10 text-slate-300 font-mono text-xs"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-white/10 text-slate-300 font-mono text-xs"
                 />
               </div>
 
@@ -304,7 +355,7 @@ export default function LandingPage() {
                   step={500}
                   value={simQty}
                   onChange={(e) => setSimQty(parseInt(e.target.value, 10))}
-                  className="w-full accent-emerald-500 cursor-pointer h-1.5 bg-dark-950 rounded-lg"
+                  className="w-full accent-emerald-500 cursor-pointer h-1.5 bg-slate-950 rounded-lg"
                 />
                 <div className="flex justify-between text-[10px] text-slate-500 font-mono">
                   <span>500</span>
@@ -313,10 +364,10 @@ export default function LandingPage() {
                 </div>
               </div>
 
-              {/* Live Price & Delivery Bar */}
-              <div className="p-4 rounded-2xl bg-dark-950/80 border border-emerald-500/20 flex items-center justify-between">
+              {/* Dynamic Live Price */}
+              <div className="p-4 rounded-2xl bg-slate-950/90 border border-emerald-500/25 flex items-center justify-between shadow-inner">
                 <div>
-                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Total Estimated Price:</span>
+                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Estimated Price:</span>
                   <div className="flex items-baseline gap-2">
                     <span className="text-2xl font-black text-emerald-400 font-mono">
                       {simTotal.toFixed(2)} MAD
@@ -327,92 +378,81 @@ export default function LandingPage() {
                   </div>
                 </div>
 
-                <a
+                <motion.a
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                   href="/register"
-                  className="px-4 py-2.5 rounded-xl primary-gradient text-white text-xs font-bold shadow-md shadow-emerald-600/20 hover:opacity-95 transition flex items-center gap-1"
+                  className="px-4 py-2.5 rounded-xl emerald-gradient text-white text-xs font-bold shadow-md shadow-emerald-600/30 flex items-center gap-1"
                 >
                   Order This <ArrowRight className="w-3.5 h-3.5" />
-                </a>
+                </motion.a>
               </div>
 
-              {/* Live Simulation Progress Strip */}
-              <div className="p-3 rounded-xl bg-dark-950/40 border border-white/5 space-y-1.5">
+              {/* Live Simulated Progress Strip */}
+              <div className="p-3 rounded-xl bg-slate-950/40 border border-white/5 space-y-1.5">
                 <div className="flex items-center justify-between text-[11px]">
                   <span className="text-slate-400 flex items-center gap-1.5">
                     <Clock className="w-3 h-3 text-emerald-400 animate-spin" /> Fulfilling Order #9842:
                   </span>
                   <span className="font-mono font-bold text-emerald-400">84% Completed</span>
                 </div>
-                <div className="w-full h-1.5 bg-dark-900 rounded-full overflow-hidden">
-                  <div className="w-[84%] h-full bg-emerald-500 rounded-full" />
+                <div className="w-full h-1.5 bg-slate-900 rounded-full overflow-hidden">
+                  <motion.div
+                    initial={{ width: "30%" }}
+                    animate={{ width: "88%" }}
+                    transition={{ duration: 4, repeat: Infinity, repeatType: "reverse" }}
+                    className="h-full bg-emerald-500 rounded-full"
+                  />
                 </div>
               </div>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
         </div>
       </section>
 
-      {/* Moroccan Payment Methods Showcase */}
-      <section id="payments" className="py-12 border-y border-white/5 bg-dark-900/50">
-        <div className="max-w-7xl mx-auto px-6">
-          <p className="text-center text-xs uppercase tracking-widest text-slate-400 font-bold mb-6">
-            Instant Zero-Fee Moroccan Banking & Global Crypto
-          </p>
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
-            <div className="glass-card p-4 rounded-2xl flex items-center gap-3 border border-white/5">
-              <div className="w-10 h-10 rounded-xl bg-orange-500/20 text-orange-400 font-black text-xs flex items-center justify-center">
-                CIH
-              </div>
-              <div>
-                <p className="text-xs font-bold text-white">CIH Bank</p>
-                <p className="text-[10px] text-slate-400">Direct Virement</p>
-              </div>
-            </div>
+      {/* Live Order Deliveries Marquee Strip */}
+      <div className="py-3 border-y border-white/5 bg-slate-950/80 overflow-hidden relative">
+        <div className="marquee-track flex gap-8 text-xs font-semibold text-slate-400">
+          {[...liveTickerOrders, ...liveTickerOrders].map((item, idx) => (
+            <span key={idx} className="whitespace-nowrap flex items-center gap-2">
+              <span>{item}</span>
+              <span className="text-emerald-500/40">•</span>
+            </span>
+          ))}
+        </div>
+      </div>
 
-            <div className="glass-card p-4 rounded-2xl flex items-center gap-3 border border-white/5">
-              <div className="w-10 h-10 rounded-xl bg-yellow-500/20 text-yellow-400 font-black text-xs flex items-center justify-center">
-                AWB
+      {/* Moroccan Payment Methods Strip */}
+      <section id="payments" className="py-12 px-6 max-w-7xl mx-auto">
+        <p className="text-center text-xs uppercase tracking-widest text-slate-400 font-bold mb-6">
+          Instant Zero-Fee Moroccan Banking & Global Crypto
+        </p>
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+          {[
+            { tag: "CIH", title: "CIH Bank", desc: "Direct Virement", color: "from-orange-500/20 text-orange-400" },
+            { tag: "AWB", title: "Attijariwafa", desc: "Virement Bancaire", color: "from-yellow-500/20 text-yellow-400" },
+            { tag: "CP", title: "Cash Plus", desc: "Agency Cash Deposit", color: "from-blue-500/20 text-blue-400" },
+            { tag: "₮", title: "USDT TRC20", desc: "Binance Pay", color: "from-emerald-500/20 text-emerald-400" },
+            { tag: "💳", title: "Card / PayPal", desc: "International", color: "from-indigo-500/20 text-indigo-400" },
+          ].map((m, i) => (
+            <motion.div
+              key={i}
+              whileHover={{ y: -3 }}
+              className="glass-panel p-4 rounded-2xl flex items-center gap-3 border border-white/5"
+            >
+              <div className={`w-10 h-10 rounded-xl bg-gradient-to-tr ${m.color} font-black text-xs flex items-center justify-center shrink-0`}>
+                {m.tag}
               </div>
               <div>
-                <p className="text-xs font-bold text-white">Attijariwafa</p>
-                <p className="text-[10px] text-slate-400">Virement Bancaire</p>
+                <p className="text-xs font-bold text-white">{m.title}</p>
+                <p className="text-[10px] text-slate-400">{m.desc}</p>
               </div>
-            </div>
-
-            <div className="glass-card p-4 rounded-2xl flex items-center gap-3 border border-white/5">
-              <div className="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-400 font-black text-xs flex items-center justify-center">
-                CP
-              </div>
-              <div>
-                <p className="text-xs font-bold text-white">Cash Plus</p>
-                <p className="text-[10px] text-slate-400">Cash Deposit</p>
-              </div>
-            </div>
-
-            <div className="glass-card p-4 rounded-2xl flex items-center gap-3 border border-white/5">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 font-black text-xs flex items-center justify-center">
-                ₮
-              </div>
-              <div>
-                <p className="text-xs font-bold text-white">USDT TRC20</p>
-                <p className="text-[10px] text-slate-400">Binance Pay</p>
-              </div>
-            </div>
-
-            <div className="glass-card p-4 rounded-2xl flex items-center gap-3 border border-white/5 col-span-2 sm:col-span-1">
-              <div className="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-400 font-black text-xs flex items-center justify-center">
-                💳
-              </div>
-              <div>
-                <p className="text-xs font-bold text-white">Card / PayPal</p>
-                <p className="text-[10px] text-slate-400">International</p>
-              </div>
-            </div>
-          </div>
+            </motion.div>
+          ))}
         </div>
       </section>
 
-      {/* How It Works (4-Step Flow) */}
+      {/* How It Works (4 Steps) */}
       <section id="how-it-works" className="py-24 max-w-7xl mx-auto px-6">
         <div className="text-center max-w-2xl mx-auto mb-16">
           <span className="text-xs font-bold text-emerald-400 uppercase tracking-widest block mb-2">
@@ -430,7 +470,7 @@ export default function LandingPage() {
           {[
             {
               step: "01",
-              title: "Create Account",
+              title: "Create Free Account",
               desc: "Sign up in 10 seconds. Get your instant personal customer wallet and Reseller API key.",
             },
             {
@@ -449,18 +489,22 @@ export default function LandingPage() {
               desc: "Orders start immediately. If an upstream server stalls, our smart failover auto-reroutes.",
             },
           ].map((item) => (
-            <div key={item.step} className="glass-card p-6 rounded-3xl border border-white/5 space-y-3 relative group">
+            <motion.div
+              key={item.step}
+              whileHover={{ y: -4 }}
+              className="glass-panel p-6 rounded-3xl border border-white/5 space-y-3 relative group"
+            >
               <div className="text-3xl font-black text-emerald-500/30 group-hover:text-emerald-400 transition font-mono">
                 {item.step}
               </div>
               <h3 className="text-base font-bold text-white">{item.title}</h3>
               <p className="text-xs text-slate-400 leading-relaxed">{item.desc}</p>
-            </div>
+            </motion.div>
           ))}
         </div>
       </section>
 
-      {/* Live Services Catalog */}
+      {/* Live Services & Rates Explorer */}
       <section id="services" className="py-20 max-w-7xl mx-auto px-6 border-t border-white/5">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
           <div>
@@ -469,7 +513,7 @@ export default function LandingPage() {
             </span>
             <h2 className="text-3xl font-black tracking-tight text-white">Live Services & Rates</h2>
             <p className="text-sm text-slate-400 mt-1">
-              Real-time rates for Instagram, TikTok, YouTube, Telegram, Facebook, and more.
+              Real-time wholesale rates for Instagram, TikTok, YouTube, Telegram, Facebook, and more.
             </p>
           </div>
 
@@ -480,7 +524,7 @@ export default function LandingPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search Instagram, TikTok, Views..."
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-dark-900 border border-white/10 text-slate-200 placeholder-slate-500 text-xs focus:ring-2 focus:ring-emerald-500"
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-900 border border-white/10 text-slate-200 placeholder-slate-500 text-xs focus:ring-2 focus:ring-emerald-500"
             />
           </div>
         </div>
@@ -493,8 +537,8 @@ export default function LandingPage() {
               onClick={() => setSelectedCategory(cat)}
               className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition ${
                 selectedCategory === cat
-                  ? "primary-gradient text-white shadow-lg shadow-emerald-600/20"
-                  : "bg-dark-900/60 text-slate-400 hover:text-slate-200 border border-white/5"
+                  ? "emerald-gradient text-white shadow-lg shadow-emerald-600/30"
+                  : "bg-slate-900/60 text-slate-400 hover:text-slate-200 border border-white/5"
               }`}
             >
               {cat}
@@ -503,10 +547,10 @@ export default function LandingPage() {
         </div>
 
         {/* Services Table */}
-        <div className="rounded-3xl border border-white/10 bg-dark-900/60 overflow-hidden shadow-card">
+        <div className="rounded-3xl border border-white/10 bg-slate-900/60 overflow-hidden shadow-2xl">
           <div className="overflow-x-auto">
             <table className="w-full text-xs text-left">
-              <thead className="bg-dark-950/80 text-slate-400 border-b border-white/5 font-semibold uppercase tracking-wider text-[11px]">
+              <thead className="bg-slate-950/90 text-slate-400 border-b border-white/5 font-semibold uppercase tracking-wider text-[11px]">
                 <tr>
                   <th className="p-4">ID</th>
                   <th className="p-4">Service</th>
@@ -518,7 +562,7 @@ export default function LandingPage() {
               </thead>
               <tbody className="divide-y divide-white/5">
                 {filteredServices.slice(0, 50).map((s) => (
-                  <tr key={s.id} className="hover:bg-dark-800/40 transition">
+                  <tr key={s.id} className="hover:bg-slate-800/40 transition">
                     <td className="p-4 font-mono text-slate-500">#{s.id.slice(0, 6)}</td>
                     <td className="p-4">
                       <span className="font-bold text-slate-200 block text-sm">{s.name}</span>
@@ -537,7 +581,7 @@ export default function LandingPage() {
                     <td className="p-4 text-right">
                       <a
                         href="/register"
-                        className="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-xl primary-gradient text-white font-bold text-xs shadow-md shadow-emerald-600/20 hover:opacity-95 transition"
+                        className="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-xl emerald-gradient text-white font-bold text-xs shadow-md hover:opacity-95 transition"
                       >
                         Order Now
                       </a>
@@ -552,9 +596,7 @@ export default function LandingPage() {
 
       {/* CTA Bottom Banner */}
       <section className="py-20 px-6 max-w-7xl mx-auto">
-        <div className="glass-card rounded-3xl p-8 sm:p-14 text-center border border-white/10 relative overflow-hidden">
-          <div className="absolute -inset-1 rounded-3xl bg-gradient-to-r from-emerald-500/20 to-indigo-500/20 blur-xl pointer-events-none" />
-
+        <div className="glass-panel rounded-3xl p-8 sm:p-14 text-center border border-white/10 relative overflow-hidden">
           <div className="relative space-y-4 max-w-2xl mx-auto">
             <span className="text-xs font-bold text-emerald-400 uppercase tracking-widest block">
               Morocco's Leading Wholesale Provider
@@ -566,15 +608,17 @@ export default function LandingPage() {
               Join thousands of Moroccan creators, brands, and digital marketing agencies who rely on SMMaroc for automated delivery every single day.
             </p>
             <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-4">
-              <a
+              <motion.a
+                whileHover={{ scale: 1.04 }}
+                whileTap={{ scale: 0.96 }}
                 href="/register"
-                className="w-full sm:w-auto px-8 py-4 rounded-2xl primary-gradient text-white font-bold text-sm shadow-xl shadow-emerald-500/25 flex items-center justify-center gap-2 hover:opacity-95 transition"
+                className="w-full sm:w-auto px-8 py-4 rounded-2xl emerald-gradient text-white font-bold text-sm emerald-gradient-glow flex items-center justify-center gap-2 shadow-2xl"
               >
-                Create Your Account Now <ArrowRight className="w-4 h-4" />
-              </a>
+                Create Free Account Now <ArrowRight className="w-4 h-4" />
+              </motion.a>
               <a
                 href="/api-docs"
-                className="w-full sm:w-auto px-6 py-4 rounded-2xl bg-dark-900 text-slate-300 font-semibold text-sm border border-white/10 transition"
+                className="w-full sm:w-auto px-6 py-4 rounded-2xl bg-slate-900 text-slate-300 font-semibold text-sm border border-white/10 transition"
               >
                 Explore Reseller API
               </a>
@@ -584,10 +628,10 @@ export default function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="py-12 border-t border-white/5 bg-dark-950">
+      <footer className="py-12 border-t border-white/5 bg-slate-950">
         <div className="max-w-7xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl primary-gradient flex items-center justify-center">
+            <div className="w-8 h-8 rounded-xl emerald-gradient flex items-center justify-center">
               <Zap className="w-4 h-4 text-white" />
             </div>
             <span className="font-black text-white text-base">SMMaroc</span>
