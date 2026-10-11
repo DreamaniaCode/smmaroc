@@ -54,7 +54,7 @@ export class SmmClient {
           "Content-Type": "application/x-www-form-urlencoded",
           "User-Agent": "SMM-Agency-Panel/1.0",
         },
-        timeout: 15000,
+        timeout: 45000,
       });
       return response.data;
     } catch (error: any) {
