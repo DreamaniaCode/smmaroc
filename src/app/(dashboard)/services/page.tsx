@@ -16,6 +16,9 @@ export default function ServicesPage() {
   const [services, setServices] = useState<any[]>([]);
   const [providers, setProviders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [showModal, setShowModal] = useState(false);
 
   // New Service Form
@@ -42,15 +45,18 @@ export default function ServicesPage() {
       const sData = await sRes.json();
       const pData = await pRes.json();
 
+      if (!sRes.ok) throw new Error(sData.error || "Catalogue indisponible");
       setServices(sData.services || []);
+      const me = await fetch("/api/auth/me").then(r => r.json());
+      setIsAdmin(me.user?.role === "ADMIN");
       const pList = pData.providers || [];
       setProviders(pList);
       if (pList.length > 0) {
         setPrimaryProviderId(pList[0].id);
         if (pList.length > 1) setBackupProviderId(pList[1].id);
       }
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      setError(err.message);
     } finally {
       setLoading(false);
     }
@@ -108,17 +114,19 @@ export default function ServicesPage() {
             Map internal catalog to Primary wholesale providers with automated backup rerouting.
           </p>
         </div>
-        <button
+        {isAdmin && <button
           onClick={() => setShowModal(true)}
           className="flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold shadow-lg shadow-brand-600/20 transition"
         >
           <PlusCircle className="w-3.5 h-3.5" /> Map New Service
-        </button>
+        </button>}
       </div>
 
+      <div className="flex flex-wrap gap-3 items-center"><input aria-label="Rechercher un service" value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} placeholder="Rechercher un service, catégorie ou ID…" className="flex-1 border rounded-xl px-4 py-3 text-sm"/><span className="text-xs text-slate-400">{services.length} services disponibles</span></div>
+      {error && <div role="alert" className="text-rose-500 p-4 border rounded-xl">{error} <button onClick={fetchData}>Réessayer</button></div>}
       {/* Services List */}
       <div className="grid grid-cols-1 gap-4">
-        {services.map((service) => {
+        {services.filter(s => (s.name + " " + s.category + " " + s.id).toLowerCase().includes(search.toLowerCase())).slice((page - 1) * 50, page * 50).map((service) => {
           const m = service.mapping;
           return (
             <div
@@ -135,7 +143,7 @@ export default function ServicesPage() {
                   </div>
                   <h3 className="font-semibold text-slate-100 text-base">{service.name}</h3>
                   <p className="text-xs text-slate-400 font-mono">
-                    Limits: {service.minQuantity.toLocaleString()} – {service.maxQuantity.toLocaleString()} | Rate: ${service.ratePer1000}/1k
+                    Limits: {service.minQuantity.toLocaleString()} – {service.maxQuantity.toLocaleString()} | Rate: {service.sellingRatePer1000} MAD/1k
                   </p>
                 </div>
 
@@ -185,6 +193,7 @@ export default function ServicesPage() {
         })}
       </div>
 
+      <div className="flex items-center justify-between text-sm"><button disabled={page <= 1} onClick={() => setPage(page - 1)}>Précédent</button><span>Page {page}</span><button disabled={page * 50 >= services.filter(s => (s.name + " " + s.category + " " + s.id).toLowerCase().includes(search.toLowerCase())).length} onClick={() => setPage(page + 1)}>Suivant</button></div>
       {/* Modal: Add New Service */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">

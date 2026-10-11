@@ -9,6 +9,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  if (session.role === "USER") return NextResponse.json({ clients: [] });
   const clients = await db.client.findMany({
     orderBy: { name: "asc" },
     include: {
@@ -27,6 +28,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    if (session.role === "USER") return NextResponse.json({ error: "Accès administrateur requis" }, { status: 403 });
     const { name, email, notes } = await req.json();
     if (!name) {
       return NextResponse.json({ error: "Client name is required" }, { status: 400 });

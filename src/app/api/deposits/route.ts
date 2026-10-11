@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
     where.userId = session.userId;
   }
 
-  const deposits = await db.deposit.findMany({ where, take: 50 });
+  const deposits = await db.deposit.findMany({ where, orderBy: { createdAt: "desc" }, include: { user: { select: { name: true, email: true } } } });
   return NextResponse.json({ deposits });
 }
 
@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
     const { amount, currency, method, reference } = await req.json();
 
     const parsedAmount = parseFloat(amount);
-    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
       return NextResponse.json(
         { error: "Please enter a valid deposit amount" },
         { status: 400 }
@@ -44,11 +44,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (!["CIH_BANK", "ATTIJARIWAFA", "CASH_PLUS", "USDT_TRC20"].includes(method) || !reference?.trim()) return NextResponse.json({ error: "Mode ou référence de paiement invalide" }, { status: 400 });
+    const configured = await db.appSetting.findUnique({ where: { key: "PAYMENT_" + method } });
+    if (!configured?.value?.trim()) return NextResponse.json({ error: "Mode de paiement non configuré" }, { status: 400 });
+    const user = await db.user.findUnique({ where: { id: session.userId } });
+    if (!user || (currency && currency !== user.currency)) return NextResponse.json({ error: "Utilisez la devise de votre portefeuille" }, { status: 400 });
     const deposit = await db.deposit.create({
       data: {
         userId: session.userId,
         amount: parsedAmount,
-        currency: currency || "MAD",
+        currency: user.currency,
         method,
         reference: reference ? String(reference).trim() : null,
         status: "PENDING",

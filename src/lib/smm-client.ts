@@ -74,7 +74,8 @@ export class SmmClient {
     if (data?.error) {
       throw new Error(data.error);
     }
-    return [];
+    if (Array.isArray(data?.services)) return data.services;
+    throw new Error("Réponse catalogue invalide reçue du fournisseur");
   }
 
   /**
@@ -159,6 +160,8 @@ export class SmmClient {
    */
   async cancel(orderIds: string[]): Promise<any> {
     const data = await this.post({ action: "cancel", orders: orderIds.join(",") });
+    if (data?.error) throw new Error(data.error);
+    if (Array.isArray(data)) { const rejected = data.find((item: any) => item.error || item.cancel?.error); if (rejected) throw new Error(rejected.error || rejected.cancel.error); }
     return data;
   }
 }

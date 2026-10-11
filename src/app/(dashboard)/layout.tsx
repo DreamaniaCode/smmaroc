@@ -37,7 +37,7 @@ export default function DashboardLayout({
       })
       .then((data) => {
         if (!data.authenticated) router.push("/login");
-        else setUser(data.user);
+        else { setUser(data.user); if (data.user.role === "USER" && ["/dashboard", "/providers", "/clients", "/settings", "/admin/deposits"].includes(pathname)) router.replace("/orders/new"); }
       })
       .catch(() => router.push("/login"));
 
@@ -57,6 +57,7 @@ export default function DashboardLayout({
   const isAdmin = user?.role === "ADMIN";
 
   const customerNav = [
+    { label: "Services", href: "/services", icon: Layers },
     { label: "New Order", href: "/orders/new", icon: PlusCircle, highlight: true },
     { label: "My Orders", href: "/orders", icon: ListOrdered },
     { label: "Add Funds (CIH/Crypto)", href: "/add-funds", icon: CreditCard },
@@ -64,7 +65,7 @@ export default function DashboardLayout({
   ];
 
   const adminNav = [
-    { label: "Operations Overview", href: "/", icon: LayoutDashboard },
+    { label: "Operations Overview", href: "/dashboard", icon: LayoutDashboard },
     { label: "New Order Desk", href: "/orders/new", icon: PlusCircle, highlight: true },
     { label: "Orders Desk", href: "/orders", icon: ListOrdered },
     { label: "Deposit Approvals", href: "/admin/deposits", icon: CreditCard },
@@ -77,18 +78,18 @@ export default function DashboardLayout({
   const navItems = isAdmin ? adminNav : customerNav;
 
   return (
-    <div className="flex h-screen bg-[#050811] text-slate-100 overflow-hidden">
+    <div className="app-shell flex h-screen bg-[#050811] text-slate-100 overflow-hidden">
       {/* Sidebar */}
       <aside className="w-64 border-r border-white/5 bg-[#0b1120]/80 backdrop-blur-xl flex flex-col shrink-0">
         <div className="p-6 border-b border-white/5">
           <a href="/" className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl emerald-gradient flex items-center justify-center shadow-lg shadow-emerald-500/20">
-              <Zap className="w-5 h-5 text-white" />
+              <img src="/smmaroc-logo.png" alt="" width={32} height={32}/>
             </div>
             <div>
               <div className="flex items-center gap-1">
                 <span className="font-black tracking-tight text-white leading-none text-base">
-                  SMM<span className="text-emerald-400">aroc</span>
+                  SMMaroc.
                 </span>
                 <span className="text-[9px] px-1 py-0.2 rounded-full bg-emerald-500/20 text-emerald-300 font-bold">
                   MA

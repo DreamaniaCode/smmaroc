@@ -19,7 +19,7 @@ export async function POST(
     include: { currentProvider: true },
   });
 
-  if (!order || !order.currentProvider || !order.providerOrderId) {
+  if (!order || (session.role === "USER" && order.userId !== session.userId) || !order.currentProvider || !order.providerOrderId) {
     return NextResponse.json({ error: "Order or provider not found" }, { status: 404 });
   }
 
@@ -27,10 +27,7 @@ export async function POST(
     const client = new SmmClient(order.currentProvider.apiUrl, order.currentProvider.apiKey);
     const cancelRes = await client.cancel([order.providerOrderId]);
 
-    await db.order.update({
-      where: { id },
-      data: { status: "CANCELED" },
-    });
+    // Cancellation is confirmed later by the upstream status poll.
 
     return NextResponse.json({ success: true, result: cancelRes });
   } catch (err: any) {

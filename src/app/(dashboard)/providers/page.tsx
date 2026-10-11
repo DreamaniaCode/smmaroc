@@ -32,9 +32,10 @@ export default function ProvidersPage() {
     try {
       const res = await fetch("/api/providers");
       const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Chargement impossible");
       setProviders(data.providers || []);
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      setError(err.message);
     } finally {
       setLoading(false);
     }
@@ -51,6 +52,7 @@ export default function ProvidersPage() {
       const data = await res.json();
       if (!res.ok) alert(data.error || "Sync failed");
       else {
+        alert(`${data.imported} services synchronisés sur ${data.servicesCount}.`);
         fetchProviders();
       }
     } catch (err: any) {
@@ -105,6 +107,7 @@ export default function ProvidersPage() {
         </button>
       </div>
 
+      {error && <div role="alert" className="p-4 text-rose-500 border rounded-xl">{error}</div>}
       {/* Providers Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {providers.map((p) => {
@@ -157,7 +160,7 @@ export default function ProvidersPage() {
               {/* API Key Security */}
               <div className="text-xs text-slate-400 flex items-center justify-between font-mono bg-slate-950/40 px-3 py-2 rounded-lg border border-slate-800/60">
                 <span className="text-slate-500 text-[10px] uppercase font-bold">API Key:</span>
-                <span className="text-slate-300">{p.apiKey}</span>
+                <span className="text-slate-300">{"••••••••••••"}</span>
               </div>
 
               {/* Sync Actions */}
@@ -171,7 +174,7 @@ export default function ProvidersPage() {
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition border border-slate-700"
                 >
                   <RefreshCw className={`w-3 h-3 ${syncingId === p.id ? "animate-spin" : ""}`} />
-                  Check Live Balance
+                  Synchroniser les services
                 </button>
               </div>
             </div>

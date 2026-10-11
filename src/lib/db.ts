@@ -1,13 +1,17 @@
+import { sellingPrice } from "./pricing";
 import { DatabaseSync } from "node:sqlite";
 import crypto from "node:crypto";
 import path from "node:path";
+import { mkdirSync } from "node:fs";
 
-const dbPath = path.resolve(process.cwd(), "dev.db");
+const configuredPath = process.env.DATABASE_URL?.replace(/^file:/, "") || "dev.db";
+const dbPath = path.resolve(process.cwd(), configuredPath);
+mkdirSync(path.dirname(dbPath), { recursive: true });
 const sqlite = new DatabaseSync(dbPath);
 
 // Enable WAL mode for high concurrency
 sqlite.exec("PRAGMA journal_mode = WAL;");
-sqlite.exec("PRAGMA foreign_keys = ON;");
+sqlite.exec("PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;");
 
 // Initialize Schema
 sqlite.exec(`
@@ -146,6 +150,30 @@ try {
 } catch {}
 
 export const db = {
+  async debitWallet(userId: string, amount: number) {
+    if (!Number.isFinite(amount) || amount < 0) throw new Error("Invalid amount");
+    return Number(sqlite.prepare("UPDATE users SET balance = balance - ?, updatedAt = ? WHERE id = ? AND balance >= ?").run(amount, new Date().toISOString(), userId, amount).changes) === 1;
+  },
+  async creditWallet(userId: string, amount: number) {
+    if (!Number.isFinite(amount) || amount < 0) throw new Error("Invalid amount");
+    sqlite.prepare("UPDATE users SET balance = balance + ?, updatedAt = ? WHERE id = ?").run(amount, new Date().toISOString(), userId);
+  },
+  async reviewDeposit(id: string, status: string, adminNotes: string | null) {
+    sqlite.exec("BEGIN IMMEDIATE");
+    try {
+      const current = sqlite.prepare("SELECT d.*, u.currency AS walletCurrency FROM deposits d JOIN users u ON u.id = d.userId WHERE d.id = ?").get(id) as any;
+      if (!current) throw new Error("Deposit not found");
+      if (current.status !== "PENDING") throw new Error("Deposit already reviewed");
+      if (current.currency !== current.walletCurrency) throw new Error("Deposit currency must match wallet currency");
+      sqlite.prepare("UPDATE deposits SET status = ?, adminNotes = ?, updatedAt = ? WHERE id = ? AND status = 'PENDING'").run(status, adminNotes, new Date().toISOString(), id);
+      if (status === "APPROVED") sqlite.prepare("UPDATE users SET balance = balance + ?, updatedAt = ? WHERE id = ?").run(current.amount, new Date().toISOString(), current.userId);
+      sqlite.exec("COMMIT");
+      return { ...current, status, adminNotes };
+    } catch (error) { sqlite.exec("ROLLBACK"); throw error; }
+  },
+  serviceMapping: {
+    async findFirst({ where }: any) { return sqlite.prepare("SELECT * FROM service_mappings WHERE primaryProviderId = ? AND primaryServiceId = ?").get(where.primaryProviderId, where.primaryServiceId) as any || null; }
+  },
   user: {
     async findUnique({ where }: { where: { email?: string; id?: string; apiKey?: string } }) {
       if (where.email) {
@@ -427,7 +455,7 @@ export const db = {
             backupProvider,
           };
         }
-        const sellingRate = s.sellingRatePer1000 && s.sellingRatePer1000 > 0 ? s.sellingRatePer1000 : (s.ratePer1000 * 1.5 * 10); // default retail in MAD
+        const sellingRate = s.sellingRatePer1000 != null && s.sellingRatePer1000 >= 0 ? s.sellingRatePer1000 : sellingPrice(s.ratePer1000, mapping?.primaryProvider?.currency); // default retail in MAD
         return {
           ...s,
           sellingRatePer1000: sellingRate,
@@ -451,7 +479,7 @@ export const db = {
           backupProvider,
         };
       }
-      const sellingRate = s.sellingRatePer1000 && s.sellingRatePer1000 > 0 ? s.sellingRatePer1000 : (s.ratePer1000 * 1.5 * 10);
+      const sellingRate = s.sellingRatePer1000 != null && s.sellingRatePer1000 >= 0 ? s.sellingRatePer1000 : sellingPrice(s.ratePer1000, mapping?.primaryProvider?.currency);
       return { ...s, sellingRatePer1000: sellingRate, dripFeedAllowed: Boolean(s.dripFeedAllowed), mapping };
     },
     async findFirst({ where, include }: any) {
@@ -479,7 +507,7 @@ export const db = {
     async create({ data, include }: any) {
       const id = data.id || crypto.randomUUID();
       const now = new Date().toISOString();
-      const sellingRate = data.sellingRatePer1000 || (data.ratePer1000 ? data.ratePer1000 * 1.5 * 10 : 25.0);
+      const sellingRate = data.sellingRatePer1000 ?? sellingPrice(data.ratePer1000 ?? 0, data.mapping?.create?.primaryProviderId ? (sqlite.prepare("SELECT currency FROM providers WHERE id = ?").get(data.mapping.create.primaryProviderId) as any)?.currency : "USD");
       sqlite.prepare(`
         INSERT INTO services (id, name, category, minQuantity, maxQuantity, ratePer1000, sellingRatePer1000, dripFeedAllowed, createdAt, updatedAt)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -603,7 +631,7 @@ export const db = {
         const user = o.userId ? sqlite.prepare("SELECT id, name, email FROM users WHERE id = ?").get(o.userId) as any : null;
         const client = o.clientId ? sqlite.prepare("SELECT id, name FROM clients WHERE id = ?").get(o.clientId) as any : null;
         const service = sqlite.prepare("SELECT id, name, category FROM services WHERE id = ?").get(o.serviceId) as any;
-        const currentProvider = o.currentProviderId ? sqlite.prepare("SELECT id, name FROM providers WHERE id = ?").get(o.currentProviderId) as any : null;
+        const currentProvider = o.currentProviderId ? sqlite.prepare(include?.currentProvider === true ? "SELECT * FROM providers WHERE id = ?" : "SELECT id, name FROM providers WHERE id = ?").get(o.currentProviderId) as any : null;
         return {
           ...o,
           failoverAttempted: Boolean(o.failoverAttempted),

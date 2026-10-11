@@ -126,9 +126,11 @@ export async function POST(req: NextRequest) {
         continue;
       }
 
+      if (!Number.isInteger(item.quantity) || item.quantity < service.minQuantity || item.quantity > service.maxQuantity || !/^https?:\/\//i.test(item.link)) { errors.push({ link: item.link, error: "Invalid link or quantity outside service limits" }); continue; }
       // Check balance if regular user
-      const customerCost = (item.quantity / 1000) * (service.sellingRatePer1000 || 25.0);
-      const currentBalance = user.balance || 0.0;
+      const customerCost = (item.quantity / 1000) * service.sellingRatePer1000;
+      const liveUser = await db.user.findUnique({ where: { id: user.id } });
+      const currentBalance = liveUser.balance;
 
       if (user.role === "USER" && currentBalance < customerCost) {
         errors.push({
@@ -140,10 +142,8 @@ export async function POST(req: NextRequest) {
 
       // Deduct customer wallet
       if (user.role === "USER") {
-        await db.user.update({
-          where: { id: user.id },
-          data: { balance: currentBalance - customerCost },
-        });
+        const debit = await db.debitWallet(user.id, customerCost);
+        if (!debit) { errors.push({ link: item.link, error: "Insufficient wallet balance" }); continue; }
       }
 
       const mapping = service.mapping;
@@ -212,10 +212,11 @@ export async function POST(req: NextRequest) {
         }
       }
 
+      if (initialStatus === "FAILED" && user.role === "USER") await db.creditWallet(user.id, customerCost);
       const order = await db.order.create({
         data: {
           userId: user.id,
-          clientId: item.clientId || null,
+          clientId: user.role === "USER" ? null : item.clientId || null,
           serviceId: service.id,
           link: item.link,
           quantity: item.quantity,
@@ -231,7 +232,8 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      createdOrders.push(order);
+      if (initialStatus === "FAILED") errors.push({ link: item.link, error: failoverReason || "Provider rejected order; wallet refunded" });
+      else createdOrders.push(order);
     }
 
     return NextResponse.json({

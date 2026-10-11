@@ -45,12 +45,12 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-[#050811] bg-emerald-glow">
+    <div className="auth-shell min-h-screen flex items-center justify-center p-4 bg-[#050811] bg-emerald-glow">
       <div className="w-full max-w-md">
         {/* Brand Header */}
         <div className="text-center mb-8">
           <a href="/" className="inline-flex items-center justify-center w-14 h-14 rounded-2xl emerald-gradient emerald-glow shadow-xl shadow-emerald-500/25 mb-4">
-            <Zap className="w-7 h-7 text-white" />
+            <img src="/smmaroc-logo.png" alt="Logo SMMaroc" width={44} height={44}/>
           </a>
           <h1 className="text-2xl font-black tracking-tight text-white flex items-center justify-center gap-1.5">
             Join <span className="text-emerald-400">SMMaroc</span>

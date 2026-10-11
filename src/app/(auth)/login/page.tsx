@@ -6,8 +6,8 @@ import { Zap, ArrowRight, Loader2, Sparkles, ShieldCheck } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("admin@agency.com");
-  const [password, setPassword] = useState("AdminPassword123!");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -38,12 +38,12 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-[#050811] bg-emerald-glow">
+    <div className="auth-shell min-h-screen flex items-center justify-center p-4 bg-[#050811] bg-emerald-glow">
       <div className="w-full max-w-md">
         {/* Brand Header */}
         <div className="text-center mb-8">
           <a href="/" className="inline-flex items-center justify-center w-14 h-14 rounded-2xl emerald-gradient emerald-glow shadow-xl shadow-emerald-500/25 mb-4">
-            <Zap className="w-7 h-7 text-white" />
+            <img src="/smmaroc-logo.png" alt="Logo SMMaroc" width={44} height={44}/>
           </a>
           <h1 className="text-2xl font-black tracking-tight text-white flex items-center justify-center gap-1.5">
             Welcome to <span className="text-emerald-400">SMMaroc</span>
@@ -107,14 +107,6 @@ export default function LoginPage() {
 
           {/* Quick Login Hint Box */}
           <div className="mt-6 pt-5 border-t border-slate-800/80 space-y-3">
-            <div className="flex items-start gap-2.5 text-xs text-slate-400 bg-slate-950/60 p-3 rounded-xl border border-slate-800">
-              <Sparkles className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-              <div>
-                <p className="font-semibold text-slate-300">Default Administrator Login:</p>
-                <p className="font-mono text-slate-400 mt-0.5">admin@agency.com / AdminPassword123!</p>
-              </div>
-            </div>
-
             <div className="text-center">
               <p className="text-xs text-slate-400">
                 Don't have an account?{" "}

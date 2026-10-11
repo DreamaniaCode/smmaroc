@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { db } from "../lib/db";
 import { SmmClient } from "../lib/smm-client";
 import { attemptOrderFailover } from "../lib/failover";
@@ -50,8 +51,8 @@ async function syncOrderStatuses() {
           const providerStatus = (statusResult.status || "").toLowerCase();
 
           let newStatus = order.status;
-          const startCount = statusResult.start_count ? parseInt(String(statusResult.start_count), 10) : order.startCount;
-          const remains = statusResult.remains ? parseInt(String(statusResult.remains), 10) : order.remains;
+          const startCount = statusResult.start_count != null ? parseInt(String(statusResult.start_count), 10) : order.startCount;
+          const remains = statusResult.remains != null ? parseInt(String(statusResult.remains), 10) : order.remains;
 
           if (providerStatus.includes("completed")) {
             newStatus = "COMPLETED";

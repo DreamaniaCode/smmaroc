@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { verifySessionToken } from "@/lib/auth";
+import { importServices } from "@/lib/sync-services";
 import { SmmClient } from "@/lib/smm-client";
 
 export async function POST(
@@ -9,7 +10,7 @@ export async function POST(
 ) {
   const token = req.cookies.get("smm_session")?.value;
   const session = token ? await verifySessionToken(token) : null;
-  if (!session) {
+  if (!session || session.role !== "ADMIN") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -21,8 +22,9 @@ export async function POST(
 
   try {
     const client = new SmmClient(provider.apiUrl, provider.apiKey);
-    const balanceData = await client.getBalance();
     const services = await client.getServices();
+    const balanceData = await client.getBalance().catch(() => ({ balance: provider.balance, currency: provider.currency }));
+    const imported = await importServices(provider, services);
 
     const updated = await db.provider.update({
       where: { id },
@@ -38,7 +40,8 @@ export async function POST(
       balance: updated.balance,
       currency: updated.currency,
       servicesCount: services.length,
-      sampleServices: services.slice(0, 100), // Return sample list for mapping UI
+      imported,
+      sampleServices: services,
     });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || "Sync failed" }, { status: 500 });

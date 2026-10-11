@@ -9,6 +9,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  if (session.role === "USER") {
+    const where = { userId: session.userId };
+    const [totalOrders, completedOrders, inProgressOrders, failedOrders] = await Promise.all([db.order.count({ where }), db.order.count({ where: { ...where, status: "COMPLETED" } }), db.order.count({ where: { ...where, status: { in: ["PENDING", "PROCESSING", "IN_PROGRESS"] } } }), db.order.count({ where: { ...where, status: "FAILED" } })]);
+    return NextResponse.json({ totalOrders, completedOrders, inProgressOrders, failedOrders, providers: [] });
+  }
   const [totalOrders, completedOrders, inProgressOrders, failedOrders, totalClients, providers] =
     await Promise.all([
       db.order.count(),

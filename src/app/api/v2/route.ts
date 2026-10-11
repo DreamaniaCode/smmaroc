@@ -105,10 +105,7 @@ export async function POST(req: NextRequest) {
 
       // Deduct balance from customer wallet
       if (user.role !== "ADMIN") {
-        await db.user.update({
-          where: { id: user.id },
-          data: { balance: (user.balance || 0.0) - customerCost },
-        });
+        if (!await db.debitWallet(user.id, customerCost)) return NextResponse.json({ error: "Insufficient balance" }, { status: 400 });
       }
 
       // Dispatch to upstream primary or backup failover
@@ -160,6 +157,10 @@ export async function POST(req: NextRequest) {
         }
       }
 
+      if (initialStatus === "FAILED") {
+        if (user.role !== "ADMIN") await db.creditWallet(user.id, customerCost);
+        return NextResponse.json({ error: failoverReason || "Provider rejected order; wallet refunded" }, { status: 502 });
+      }
       const order = await db.order.create({
         data: {
           userId: user.id,

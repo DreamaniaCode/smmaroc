@@ -29,7 +29,7 @@ export default function NewOrderPage() {
   const [clients, setClients] = useState<any[]>([]);
   const [services, setServices] = useState<any[]>([]);
   const [selectedClient, setSelectedClient] = useState("");
-  const [selectedPlatform, setSelectedPlatform] = useState("Instagram");
+  const [selectedPlatform, setSelectedPlatform] = useState("General");
   const [selectedService, setSelectedService] = useState("");
   const [link, setLink] = useState("");
   const [quantity, setQuantity] = useState(1000);
@@ -60,12 +60,13 @@ export default function NewOrderPage() {
     fetch("/api/services")
       .then((res) => res.json())
       .then((data) => {
+        if (data.error) throw new Error(data.error);
         const sList = data.services || [];
         setServices(sList);
         if (sList.length > 0) {
           setSelectedService(sList[0].id);
         }
-      });
+      }).catch(err => setError(err.message || "Catalogue indisponible"));
   }, []);
 
   const platforms = [
@@ -82,21 +83,27 @@ export default function NewOrderPage() {
     return s.category.toLowerCase().includes(selectedPlatform.toLowerCase());
   });
 
-  const activeServiceObj = services.find((s) => s.id === selectedService) || filteredServices[0];
+  const activeServiceObj = filteredServices.find((s) => s.id === selectedService) || filteredServices[0];
 
   const isAdmin = user?.role === "ADMIN";
   const userBalance = user?.balance || 0.0;
   const userCurrency = user?.currency || "MAD";
 
   // Real-time calculations
-  const ratePerThousand = activeServiceObj?.sellingRatePer1000 || 25.0;
+  const ratePerThousand = activeServiceObj?.sellingRatePer1000 ?? 0;
   const totalCost = (quantity / 1000) * ratePerThousand;
   const remainingBalance = userBalance - totalCost;
   const hasEnoughFunds = isAdmin || userBalance >= totalCost;
 
+  const handleMassSubmit = async (e: React.FormEvent) => {
+    e.preventDefault(); setLoading(true); setError(""); setResult(null);
+    try { const response = await fetch("/api/orders", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "MASS", rawText: massText }) }); const data = await response.json(); if (!response.ok || !data.success) throw new Error(data.error || data.errors?.[0]?.error || "Aucune commande acceptée"); setResult({ success: true, message: `${data.count} commandes acceptées` }); if (data.errors?.length) setError(data.errors.map((item: any) => item.error).join(" · ")); else setMassText(""); } catch (err: any) { setError(err.message); } finally { setLoading(false); }
+  };
+
   // Handle Submit
   const handleSingleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!activeServiceObj) { setError("Choisissez un service disponible"); return; }
     if (!hasEnoughFunds) {
       setError(`Insufficient wallet balance. Cost: ${totalCost.toFixed(2)} ${userCurrency}. Please deposit funds.`);
       return;
@@ -122,7 +129,7 @@ export default function NewOrderPage() {
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to place order");
+      if (!res.ok || !data.success) throw new Error(data.error || data.errors?.[0]?.error || "Failed to place order");
 
       setResult({
         success: true,
@@ -209,8 +216,10 @@ export default function NewOrderPage() {
         </div>
       )}
 
+      <div className="flex gap-3"><button type="button" onClick={() => setTab("SINGLE")} className={`px-4 py-2 rounded-xl border text-sm ${tab === "SINGLE" ? "primary-gradient" : ""}`}>Commande simple</button><button type="button" onClick={() => setTab("MASS")} className={`px-4 py-2 rounded-xl border text-sm ${tab === "MASS" ? "primary-gradient" : ""}`}>Commandes en lot</button></div>
+      {tab === "MASS" && <form onSubmit={handleMassSubmit} className="glass-card rounded-2xl p-6 space-y-4"><h2 className="font-bold">Commandes en lot</h2><p className="text-xs text-slate-400">Une ligne par commande : ID du service | lien public | quantité. Copiez les IDs depuis le catalogue.</p><textarea aria-label="Commandes en lot" value={massText} onChange={e => setMassText(e.target.value)} required rows={8} placeholder="ID | https://instagram.com/profil | 1000" className="w-full rounded-xl border p-4 font-mono text-xs"/><button disabled={loading} className="primary-gradient rounded-xl px-5 py-3 text-sm">{loading ? "Envoi…" : "Envoyer les commandes"}</button></form>}
       {/* 2-Column Dribbble Order Workspace */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      <div className={`grid grid-cols-1 lg:grid-cols-12 gap-8 items-start ${tab === "MASS" ? "hidden" : ""}`}>
         {/* Left Column: Input Form (8 cols) */}
         <div className="lg:col-span-7 space-y-6">
           {/* Platform Selector Grid */}
@@ -226,7 +235,7 @@ export default function NewOrderPage() {
                   onClick={() => {
                     setSelectedPlatform(p.id);
                     const matched = services.find((s) => s.category.toLowerCase().includes(p.id.toLowerCase()));
-                    if (matched) setSelectedService(matched.id);
+                    setSelectedService(matched?.id || "");
                   }}
                   className={`p-3 rounded-2xl border text-center transition flex flex-col items-center gap-1.5 ${
                     selectedPlatform === p.id
@@ -260,7 +269,7 @@ export default function NewOrderPage() {
               >
                 {filteredServices.map((s) => (
                   <option key={s.id} value={s.id}>
-                    {s.name} ({s.sellingRatePer1000 || 25} {userCurrency}/1k)
+                    {s.name} ({s.sellingRatePer1000 ?? 0} {userCurrency}/1k)
                   </option>
                 ))}
               </select>
@@ -319,7 +328,7 @@ export default function NewOrderPage() {
             {/* Submit Button (Mobile / Desktop) */}
             <button
               type="submit"
-              disabled={loading || !hasEnoughFunds}
+              disabled={loading || !hasEnoughFunds || !activeServiceObj}
               className="w-full py-4 px-4 rounded-2xl primary-gradient text-white font-bold text-sm shadow-xl shadow-emerald-500/25 flex items-center justify-center gap-2 hover:opacity-95 transition disabled:opacity-50"
             >
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
@@ -336,7 +345,7 @@ export default function NewOrderPage() {
                 <Sparkles className="w-3.5 h-3.5 text-emerald-400" /> Live Order Summary
               </span>
               <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 text-[10px] font-bold border border-emerald-500/20">
-                Auto Failover Active
+                {activeServiceObj?.mapping?.autoFailover ? "Routage de secours" : "Commande directe"}
               </span>
             </div>
 
@@ -345,8 +354,7 @@ export default function NewOrderPage() {
               <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Service:</span>
               <p className="text-sm font-bold text-slate-100">{activeServiceObj?.name || "Select a service"}</p>
               <div className="flex items-center gap-3 text-xs text-emerald-400 pt-1">
-                <span>⚡ Instant Start</span>
-                <span>• 30-Day Auto Refill</span>
+                <span>Les délais dépendent du service choisi.</span>
               </div>
             </div>
 

@@ -10,6 +10,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  if (session.role === "USER") return NextResponse.json({ error: "Accès administrateur requis" }, { status: 403 });
   const providers = await db.provider.findMany({
     orderBy: { createdAt: "desc" },
     include: {

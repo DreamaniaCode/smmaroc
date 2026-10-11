@@ -5,9 +5,7 @@ import { verifySessionToken } from "@/lib/auth";
 export async function GET(req: NextRequest) {
   const token = req.cookies.get("smm_session")?.value;
   const session = token ? await verifySessionToken(token) : null;
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+
 
   const services = await db.service.findMany({
     orderBy: { category: "asc" },
@@ -21,7 +19,8 @@ export async function GET(req: NextRequest) {
     },
   });
 
-  return NextResponse.json({ services });
+  const catalog = session?.role === "ADMIN" ? services : services.map(({ mapping, ratePer1000, ...service }) => service);
+  return NextResponse.json({ services: catalog });
 }
 
 export async function POST(req: NextRequest) {

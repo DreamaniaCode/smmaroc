@@ -19,7 +19,7 @@ export async function POST(
     include: { currentProvider: true },
   });
 
-  if (!order || !order.currentProvider || !order.providerOrderId) {
+  if (!order || (session.role === "USER" && order.userId !== session.userId) || !order.currentProvider || !order.providerOrderId) {
     return NextResponse.json({ error: "Order or provider not found" }, { status: 404 });
   }
 
