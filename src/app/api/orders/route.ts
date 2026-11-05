@@ -123,7 +123,7 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      if (!service || !service.mapping) {
+      if (!service || !service.isActive || !service.mapping) {
         errors.push({ link: item.link, error: `Service ID ${item.serviceId} is not available` });
         continue;
       }

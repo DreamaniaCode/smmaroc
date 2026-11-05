@@ -57,6 +57,7 @@ model Provider {
 }
 
 model Service {
+  isActive Boolean @default(true)
   id                 String          @id @default(uuid())
   name               String
   category           String // e.g. "Instagram Followers", "YouTube Views"

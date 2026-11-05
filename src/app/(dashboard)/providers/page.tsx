@@ -60,21 +60,16 @@ export default function ProvidersPage() {
     } catch(err:any){setError(err.message);}finally{setRefreshingId(null);}
   };
 
-  const handleSync = async (id: string) => {
-    setSyncingId(id);
+  const handleSync = async (id:string) => {
+    setSyncingId(id);setError("");setNotice("");
+    const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),125000);
     try {
-      const res = await fetch(`/api/providers/${id}/sync`, { method: "POST" });
-      const data = await res.json();
-      if (!res.ok) alert(data.error || "Sync failed");
-      else {
-        alert(`${data.imported} services synchronisés sur ${data.servicesCount}.`);
-        fetchProviders();
-      }
-    } catch (err: any) {
-      alert(err.message);
-    } finally {
-      setSyncingId(null);
-    }
+      const response=await fetch(`/api/providers/${id}/sync`,{method:"POST",signal:controller.signal});
+      let data;try{data=await response.json();}catch{throw new Error("La synchronisation n’a pas renvoyé de réponse valide. Vérifiez le catalogue avant de réessayer.");}
+      if(!response.ok)throw new Error(data.error||"Synchronisation impossible.");
+      setNotice(data.imported+" services actifs synchronisés. Les services indisponibles sont masqués, les commandes existantes sont conservées.");
+      await fetchProviders();
+    }catch(err:any){setError(err.name==="AbortError"?"La synchronisation prend trop de temps. Vérifiez le catalogue avant de relancer.":err.message);}finally{clearTimeout(timer);setSyncingId(null);}
   };
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -187,7 +182,7 @@ export default function ProvidersPage() {
               {/* Sync Actions */}
               <div className="pt-2 flex items-center justify-between border-t border-slate-800/60">
                 <span className="text-[10px] text-slate-500">
-                  {p._count?.orders || 0} orders dispatched
+                  {p._count?.orders || 0} commandes affectées
                 </span>
                 <button
                   onClick={() => handleSync(p.id)}

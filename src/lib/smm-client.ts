@@ -32,6 +32,7 @@ export interface SmmAddOrderParams {
 }
 
 export class SupplierBalanceError extends Error {}
+export class OrderNotSubmittedError extends Error {}
 
 export function normalizeProviderUrl(value: string) {
  const url = new URL(value.trim());
@@ -107,12 +108,15 @@ export class SmmClient {
    * Submit a new order
    */
   async addOrder(params: SmmAddOrderParams): Promise<{ order: string }> {
-    const { balance } = await this.getBalance();
+    let balance:number,rate:number;
+    try {
+    ({ balance } = await this.getBalance());
     if (balance <= 0) throw new SupplierBalanceError("Solde fournisseur insuffisant. Commande en attente de recharge.");
-    const rate = params.ratePer1000 ?? Number((await this.getServices()).find(s => String(s.service) === String(params.service))?.rate);
+    rate = params.ratePer1000 ?? Number((await this.getServices()).find(s => String(s.service) === String(params.service))?.rate);
     if (!Number.isFinite(rate) || rate < 0) throw new Error("Tarif fournisseur indisponible. Commande non envoyée.");
     const supplierCost = rate * params.quantity / 1000 * (params.runs && params.runs > 1 ? params.runs : 1);
     if (balance < supplierCost) throw new SupplierBalanceError("Solde fournisseur insuffisant. Commande en attente de recharge.");
+    } catch(error) {if(error instanceof SupplierBalanceError)throw error;throw new OrderNotSubmittedError(error instanceof Error?error.message:"Vérification fournisseur impossible");}
     const payload: Record<string, any> = {
       action: "add",
       service: params.service,
@@ -132,7 +136,7 @@ export class SmmClient {
     const data = await this.post(payload);
     if (data?.error) {
       if (/insufficient.*(balance|fund)|not enough.*(balance|fund)|balance.*insufficient/i.test(String(data.error))) throw new SupplierBalanceError(String(data.error));
-      throw new Error(data.error);
+      throw new OrderNotSubmittedError(String(data.error));
     }
     if (!data?.order || !/^[1-9]\d*$/.test(String(data.order))) {
       throw new Error("No order ID returned from provider");

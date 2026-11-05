@@ -59,7 +59,7 @@ export const db={
   async update(args:any){return normalize(await prisma.provider.update(args));}
  },
  service:{
-  async findMany(args:any={}):Promise<any[]>{return normalize(await prisma.service.findMany({...args,orderBy:args.orderBy??[{category:"asc"},{name:"asc"}],...(args.select?{}:{include:args.include??{mapping:{include:{primaryProvider:publicProvider,backupProvider:publicProvider}}}})}));},
+  async findMany(args:any={}):Promise<any[]>{return normalize(await prisma.service.findMany({...args,where:{isActive:true,...args.where},orderBy:args.orderBy??[{category:"asc"},{name:"asc"}],...(args.select?{}:{include:args.include??{mapping:{include:{primaryProvider:publicProvider,backupProvider:publicProvider}}}})}));},
   async findUnique(args:any){return normalize(await prisma.service.findUnique({...args,...(args.select?{}:{...(args.select?{}:{include:args.include??{mapping:{include:mappingInclude}}})})}));},
   async findFirst(args:any){return normalize(await prisma.service.findFirst({...args,...(args.select?{}:{include:args.include??{mapping:{include:mappingInclude}}})}));},
   async create({data,...args}:any){

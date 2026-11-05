@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 
 export default function OrdersPage() {
+  const [retryOrder,setRetryOrder]=useState<any>(null),[retryServices,setRetryServices]=useState<any[]>([]),[retryService,setRetryService]=useState(""),[retryQuery,setRetryQuery]=useState(""),[retryConfirmed,setRetryConfirmed]=useState(false),[retryError,setRetryError]=useState(""),[retryNotice,setRetryNotice]=useState("");
   const [error,setError] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
   useEffect(() => { readApi("/api/auth/me").then(data => setIsAdmin(data.user?.role === "ADMIN")).catch(err=>setError(err.message)); }, []);
@@ -60,6 +61,16 @@ export default function OrdersPage() {
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     fetchOrders();
+  };
+
+  const openRetry=async(order:any)=>{
+    setRetryOrder(order);setRetryService("");setRetryConfirmed(false);setRetryError("");setRetryQuery("Instagram");
+    try{const data=await readApi("/api/services");setRetryServices(data.services.filter((s:any)=>s.mapping?.primaryProviderId===order.currentProviderId&&order.quantity>=s.minQuantity&&order.quantity<=s.maxQuantity));}catch(e:any){setRetryError(e.message);}
+  };
+  const submitRetry=async()=>{
+    if(!retryConfirmed||!retryService)return;
+    setActionLoading("retry-"+retryOrder.id);setRetryError("");
+    try{const response=await fetch("/api/orders/"+retryOrder.id+"/retry",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({serviceId:retryService,confirmedNotSubmitted:retryConfirmed})});const data=await response.json();if(!response.ok)throw new Error(data.error||"Reprise impossible");setRetryNotice(data.message||"Commande actualisée");setRetryOrder(null);await fetchOrders();}catch(e:any){setRetryError(e.message);}finally{setActionLoading(null);}
   };
 
   // 1-Click Refill
@@ -171,6 +182,9 @@ export default function OrdersPage() {
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
+      {retryNotice&&<p role="status" className="p-4 border rounded-xl">{retryNotice}</p>}
+      {retryOrder&&<div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4"><section role="dialog" aria-modal="true" aria-label="Reprendre la commande" className="bg-slate-900 rounded-2xl border border-slate-800 p-6 w-full max-w-xl space-y-4"><h2 className="font-bold text-lg">Reprendre la commande #{retryOrder.id.slice(0,8)}</h2><p className="text-sm">Choisissez un service actif pour {retryOrder.quantity.toLocaleString()} unités. Le prix déjà payé par le client reste inchangé, sans nouveau débit.</p><input className="w-full p-3 border rounded-xl" aria-label="Rechercher un service de remplacement" value={retryQuery} onChange={e=>setRetryQuery(e.target.value)} placeholder="Rechercher un service"/><select className="w-full p-3 border rounded-xl" aria-label="Service de remplacement" value={retryService} onChange={e=>setRetryService(e.target.value)}><option value="">Choisir un service actif…</option>{retryServices.filter(s=>(s.name+" "+s.category).toLowerCase().includes(retryQuery.toLowerCase())).slice(0,100).map(s=><option key={s.id} value={s.id}>{s.name} · coût fournisseur estimé {(s.ratePer1000*retryOrder.quantity/1000*retryOrder.runs).toFixed(2)}</option>)}</select><label className="flex items-start gap-3 text-sm"><input type="checkbox" checked={retryConfirmed} onChange={e=>setRetryConfirmed(e.target.checked)}/><span>J’ai vérifié l’historique JAP : aucune commande correspondante n’existe pour ce profil et cette quantité.</span></label>{retryError&&<p role="alert" className="text-rose-500">{retryError}</p>}<div className="flex justify-end gap-3"><button disabled={actionLoading!==null} onClick={()=>setRetryOrder(null)} className="p-3 border rounded-xl">Fermer</button><button disabled={!retryService||!retryConfirmed||actionLoading!==null} onClick={submitRetry} className="p-3 bg-brand-600 text-white rounded-xl">{actionLoading?"Traitement…":"Reprendre sans nouveau débit"}</button></div></section></div>}
+
       {error && <div role="alert" className="dashboard-alert">{error}<button onClick={fetchOrders}>Réessayer</button></div>}
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -277,7 +291,7 @@ export default function OrdersPage() {
 
                     <td className="p-4 font-sans">
                       <span className="font-semibold text-slate-300">
-                        {o.client?.name || <span className="text-slate-500 italic">None</span>}
+                        {o.client?.name || o.user?.name || <span className="text-slate-500 italic">None</span>}
                       </span>
                     </td>
 
@@ -320,13 +334,15 @@ export default function OrdersPage() {
 
                     <td className="p-4 font-sans">
                       {getStatusBadge(o.status, isAdmin && o.failoverAttempted)}
+                      {isAdmin&&o.failoverReason&&o.status==="REVIEW_REQUIRED"&&<p className="mt-2 text-xs max-w-xs">{o.failoverReason}</p>}
                     </td>
 
                     <td className="p-4 font-sans text-right">
                       <div className="inline-flex items-center gap-1.5">
+                        {isAdmin&&o.status==="REVIEW_REQUIRED"&&!o.providerOrderId&&<button onClick={()=>openRetry(o)} className="text-xs px-2 py-1 rounded border">Choisir un service et reprendre</button>}
                         <button
                           onClick={() => handleRefill(o.id)}
-                          disabled={actionLoading === `refill-${o.id}`}
+                          disabled={!o.providerOrderId || actionLoading === `refill-${o.id}`}
                           title="Request Refill"
                           className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition"
                         >

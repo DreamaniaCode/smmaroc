@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      if (!service || !service.mapping) {
+      if (!service || !service.isActive || !service.mapping) {
         return NextResponse.json({ error: "Service not found or currently unavailable" }, { status: 400 });
       }
 

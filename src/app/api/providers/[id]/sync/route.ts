@@ -4,6 +4,8 @@ import { verifySessionToken } from "@/lib/auth";
 import { importServices } from "@/lib/sync-services";
 import { SmmClient } from "@/lib/smm-client";
 
+export const maxDuration=120;
+
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -22,9 +24,8 @@ export async function POST(
 
   try {
     const client = new SmmClient(provider.apiUrl, provider.apiKey);
-    const services = await client.getServices();
-    const balanceData = await client.getBalance().catch(() => ({ balance: provider.balance, currency: provider.currency }));
-    const imported = await importServices(provider, services);
+    const [services,balanceData] = await Promise.all([client.getServices(),client.getBalance().catch(() => ({balance:provider.balance,currency:provider.currency}))]);
+    const imported = await importServices({...provider,currency:balanceData.currency}, services);
 
     const updated = await db.provider.update({
       where: { id },
@@ -41,7 +42,7 @@ export async function POST(
       currency: updated.currency,
       servicesCount: services.length,
       imported,
-      sampleServices: services,
+
     });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || "Sync failed" }, { status: 500 });
