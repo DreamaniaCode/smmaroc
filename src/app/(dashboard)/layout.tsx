@@ -53,6 +53,13 @@ export default function DashboardLayout({
     return () => {active=false;};
   }, [router, pathname, sessionRetry]);
 
+  useEffect(()=>{
+    let active=true;
+    const refresh=()=>{readApi("/api/auth/me").then(data=>{if(active&&data.user)setUser(data.user);}).catch(()=>{});readApi("/api/stats").then(data=>{if(active&&data.totalBalance!==undefined)setWholesaleBalance(data.totalBalance);}).catch(()=>{});};
+    window.addEventListener("wallet-updated",refresh);window.addEventListener("focus",refresh);
+    return ()=>{active=false;window.removeEventListener("wallet-updated",refresh);window.removeEventListener("focus",refresh);};
+  },[]);
+
   const handleLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });
     router.push("/login");

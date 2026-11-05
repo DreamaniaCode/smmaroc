@@ -1,8 +1,9 @@
 import { db } from "./db";
 import { SmmClient, SupplierBalanceError } from "./smm-client";
-export async function dispatchQueuedOrders() {
- const queued = await db.order.findMany({where:{status:"AWAITING_FUNDS"},include:{currentProvider:true}});
- for(const order of queued.reverse()) {
+export async function dispatchQueuedOrders(options: {providerId?:string;limit?:number} = {}) {
+ const queued = await db.order.findMany({where:{status:"AWAITING_FUNDS",providerOrderId:null,...(options.providerId?{currentProviderId:options.providerId}:{})},orderBy:{createdAt:"asc"},take:options.limit ?? 100,include:{currentProvider:true}});
+ let dispatched=0;
+ for(const order of queued) {
   if(!await db.order.claimQueued(order.id)) continue;
   try {
    const service=await db.service.findUnique({where:{id:order.serviceId}});
@@ -14,8 +15,10 @@ export async function dispatchQueuedOrders() {
    const client=new SmmClient(provider.apiUrl,provider.apiKey);
    const result=await client.addOrder({service:serviceId,link:order.link,quantity:order.quantity,runs:order.runs,interval:order.intervalMinutes,ratePer1000:provider.id===mapping.primaryProviderId?service.ratePer1000:undefined});
    await db.order.update({where:{id:order.id},data:{providerOrderId:result.order,status:"PROCESSING",failoverReason:null}});
+   dispatched++;
   } catch(error) {
    await db.order.update({where:{id:order.id},data:{status:error instanceof SupplierBalanceError?"AWAITING_FUNDS":"REVIEW_REQUIRED",failoverReason:error instanceof SupplierBalanceError?"En attente de traitement":"Envoi à vérifier par un administrateur"}});
   }
  }
+ return {dispatched};
 }

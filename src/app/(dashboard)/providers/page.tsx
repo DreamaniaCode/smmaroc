@@ -16,7 +16,10 @@ import {
 export default function ProvidersPage() {
   const [providers, setProviders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshingId,setRefreshingId] = useState<string|null>(null);
+  const [notice,setNotice] = useState("");
   const [syncingId, setSyncingId] = useState<string | null>(null);
+  const [editingId,setEditingId] = useState<string|null>(null);
   const [showModal, setShowModal] = useState(false);
 
   // New Provider Form
@@ -45,6 +48,18 @@ export default function ProvidersPage() {
     fetchProviders();
   }, []);
 
+  const refreshBalance = async (id:string) => {
+    setRefreshingId(id);setError("");setNotice("");
+    try {
+      const response=await fetch(`/api/providers/${id}/balance`,{method:"POST"});
+      const data=await response.json();
+      if(!response.ok)throw new Error(data.error || "Vérification impossible.");
+      setProviders(current=>current.map(p=>p.id===id?{...p,...data}:p));
+      window.dispatchEvent(new Event("wallet-updated"));
+      setNotice(data.queueWarning || (data.dispatched ? "Solde actualisé. Une commande en attente a repris son traitement, sans nouveau débit du portefeuille client." : "Solde fournisseur actualisé : "+Number(data.balance).toFixed(2)+" "+data.currency+(data.balance===0?". Le fournisseur confirme un solde nul pour la clé API configurée.":".")));
+    } catch(err:any){setError(err.message);}finally{setRefreshingId(null);}
+  };
+
   const handleSync = async (id: string) => {
     setSyncingId(id);
     try {
@@ -68,8 +83,8 @@ export default function ProvidersPage() {
     setError("");
 
     try {
-      const res = await fetch("/api/providers", {
-        method: "POST",
+      const res = await fetch(editingId ? `/api/providers/${editingId}` : "/api/providers", {
+        method: editingId ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, apiUrl, apiKey, lowBalanceLimit }),
       });
@@ -100,7 +115,7 @@ export default function ProvidersPage() {
           </p>
         </div>
         <button
-          onClick={() => setShowModal(true)}
+          onClick={() => {setEditingId(null);setName("");setApiUrl("https://");setApiKey("");setError("");setShowModal(true);}}
           className="flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold shadow-lg shadow-brand-600/20 transition"
         >
           <PlusCircle className="w-3.5 h-3.5" /> Connect Upstream Provider
@@ -108,6 +123,8 @@ export default function ProvidersPage() {
       </div>
 
       {error && <div role="alert" className="p-4 text-rose-500 border rounded-xl">{error}</div>}
+      {notice && <p role="status" className="p-4 border rounded-xl">{notice}</p>}
+      <p className="text-sm text-slate-400">Le portefeuille fournisseur est distinct du solde client SMMaroc. Après une recharge fournisseur, actualisez le solde pour reprendre les commandes payées en attente.</p>
       {/* Providers Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {providers.map((p) => {
@@ -157,6 +174,10 @@ export default function ProvidersPage() {
                 </p>
               </div>
 
+              <button onClick={()=>refreshBalance(p.id)} disabled={refreshingId!==null} className="px-3 py-2 rounded-xl bg-brand-600 text-white text-xs font-semibold">{refreshingId===p.id?"Vérification…":"Actualiser le solde et reprendre les commandes"}</button>
+              <p className="text-xs text-slate-500">Dernière vérification : {p.lastCheckedAt?new Date(p.lastCheckedAt).toLocaleString("fr-MA"):"jamais"}</p>
+
+              <button onClick={()=>{setEditingId(p.id);setName(p.name);setApiUrl(p.apiUrl);setApiKey("");setLowBalanceLimit(p.lowBalanceLimit);setError("");setShowModal(true);}} className="text-xs underline">Modifier l’URL ou la clé API</button>
               {/* API Key Security */}
               <div className="text-xs text-slate-400 flex items-center justify-between font-mono bg-slate-950/40 px-3 py-2 rounded-lg border border-slate-800/60">
                 <span className="text-slate-500 text-[10px] uppercase font-bold">API Key:</span>
@@ -186,7 +207,7 @@ export default function ProvidersPage() {
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
           <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl">
-            <h2 className="text-lg font-bold text-white mb-4">Connect Wholesale SMM Provider</h2>
+            <h2 className="text-lg font-bold text-white mb-4">{editingId ? "Modifier la connexion fournisseur" : "Connect Wholesale SMM Provider"}</h2>
 
             {error && (
               <div className="p-3 mb-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs">
@@ -225,8 +246,8 @@ export default function ProvidersPage() {
                   type="password"
                   value={apiKey}
                   onChange={(e) => setApiKey(e.target.value)}
-                  required
-                  placeholder="Paste your upstream API secret key"
+                  required={!editingId}
+                  placeholder={editingId ? "Laisser vide pour conserver la clé actuelle" : "Paste your upstream API secret key"}
                   className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-200 text-xs font-mono"
                 />
               </div>
@@ -257,7 +278,7 @@ export default function ProvidersPage() {
                   disabled={saving}
                   className="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold shadow-lg shadow-brand-600/20"
                 >
-                  {saving ? "Connecting..." : "Connect Provider"}
+                  {saving ? "Vérification…" : editingId ? "Vérifier et enregistrer" : "Connect Provider"}
                 </button>
               </div>
             </form>

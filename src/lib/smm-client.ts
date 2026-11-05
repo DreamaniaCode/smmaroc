@@ -33,12 +33,18 @@ export interface SmmAddOrderParams {
 
 export class SupplierBalanceError extends Error {}
 
+export function normalizeProviderUrl(value: string) {
+ const url = new URL(value.trim());
+ if (["justanotherpanel.com", "www.justanotherpanel.com"].includes(url.hostname) && /^\/api\/?$/.test(url.pathname)) url.pathname = "/api/v2";
+ return url.toString();
+}
+
 export class SmmClient {
   private apiUrl: string;
   private apiKey: string;
 
   constructor(apiUrl: string, apiKey: string) {
-    this.apiUrl = apiUrl.trim();
+    this.apiUrl = normalizeProviderUrl(apiUrl);
     this.apiKey = apiKey.trim();
   }
 
@@ -89,9 +95,12 @@ export class SmmClient {
     if (data?.error) {
       throw new Error(data.error);
     }
-    const balance = parseFloat(data?.balance ?? 0);
-    const currency = data?.currency ?? "USD";
-    return { balance: isNaN(balance) ? 0 : balance, currency };
+    const raw = data?.balance;
+    const balance = typeof raw === "number" ? raw : typeof raw === "string" && raw.trim() ? Number(raw) : NaN;
+    if (!Number.isFinite(balance) || balance < 0 || typeof data?.currency !== "string" || !data.currency.trim()) {
+      throw new Error("Réponse de solde invalide. Vérifiez l’URL API et la clé du fournisseur.");
+    }
+    return { balance, currency: data.currency.trim() };
   }
 
   /**
