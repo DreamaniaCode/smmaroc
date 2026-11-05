@@ -1,3 +1,4 @@
+import {serviceAvailableForNewOrder} from "@/lib/catalog-availability";
 import { apiOrderStatus } from "@/lib/order-status";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
@@ -84,7 +85,7 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      if (!service || !service.isActive || !service.mapping) {
+      if (!serviceAvailableForNewOrder(service)) {
         return NextResponse.json({ error: "Service not found or currently unavailable" }, { status: 400 });
       }
 

@@ -1,0 +1,12 @@
+import {setupTestDatabase} from "./test-database";import assert from "node:assert/strict";
+async function main(){const cleanup=await setupTestDatabase();try{const {db,prisma}=await import("../src/lib/db");const {serviceAvailableForNewOrder}=await import("../src/lib/catalog-availability");
+ const smm=await db.provider.create({data:{name:"SMMKings",apiUrl:"https://smmkings.test/api",apiKey:"test",balance:0}});
+ const jap=await db.provider.create({data:{name:"JustAnotherPanel",apiUrl:"https://example.test/api",apiKey:"test",balance:0}});
+ const make=(id:string,name:string)=>db.service.create({data:{name,category:"Test",mapping:{create:{primaryProviderId:id,primaryServiceId:"1"}}}});
+ const hidden=await make(smm.id,"SMM service");await make(jap.id,"JAP service");
+ assert.equal((await db.service.findMany()).length,1);assert.equal(serviceAvailableForNewOrder(await db.service.findUnique({where:{id:hidden.id}})),false);
+ assert.equal((await db.service.findMany({where:{id:hidden.id}})).length,0);
+ await db.provider.update({where:{id:smm.id},data:{balance:5}});assert.equal((await db.service.findMany()).length,2);assert.equal(serviceAvailableForNewOrder(await db.service.findUnique({where:{id:hidden.id}})),true);
+ await db.provider.update({where:{id:smm.id},data:{balance:0}});assert.equal((await db.service.findMany()).length,1);assert.equal(await prisma.service.count(),2);
+ console.log("PASS: unfunded SMMKings hidden, positive balance restores offers, other providers unchanged, no services deleted.");
+ }finally{await cleanup();}}main().catch(e=>{console.error(e);process.exitCode=1});

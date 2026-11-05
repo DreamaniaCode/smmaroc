@@ -1,3 +1,4 @@
+import {serviceAvailableForNewOrder} from "@/lib/catalog-availability";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { verifySessionToken } from "@/lib/auth";
@@ -123,7 +124,7 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      if (!service || !service.isActive || !service.mapping) {
+      if (!serviceAvailableForNewOrder(service)) {
         errors.push({ link: item.link, error: `Service ID ${item.serviceId} is not available` });
         continue;
       }
