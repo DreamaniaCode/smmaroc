@@ -1,9 +1,13 @@
+import {refreshOrderStatuses} from "@/lib/sync-order-statuses";
 import {serviceAvailableForNewOrder} from "@/lib/catalog-availability";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { verifySessionToken } from "@/lib/auth";
 import { SmmClient, SupplierBalanceError } from "@/lib/smm-client";
 import { alertFailoverTriggered, alertOrderFailed } from "@/lib/telegram";
+
+export const dynamic="force-dynamic";
+export const maxDuration=180;
 
 export async function GET(req: NextRequest) {
   const token = req.cookies.get("smm_session")?.value;
@@ -36,6 +40,7 @@ export async function GET(req: NextRequest) {
     ];
   }
 
+  const sync=await refreshOrderStatuses(where,searchParams.get("refresh")==="1");
   const orders = await db.order.findMany({
     where,
     orderBy: { createdAt: "desc" },
@@ -47,7 +52,7 @@ export async function GET(req: NextRequest) {
     },
   });
 
-  return NextResponse.json({ orders: session.role === "ADMIN" ? orders : orders.map(({currentProvider, currentProviderId, providerOrderId, failoverAttempted, failoverReason, charge, ...order}: any) => order) });
+  return NextResponse.json({ sync, orders: session.role === "ADMIN" ? orders : orders.map(({currentProvider, currentProviderId, providerOrderId, failoverAttempted, failoverReason, charge, ...order}: any) => order) },{headers:{"Cache-Control":"no-store"}});
 }
 
 export async function POST(req: NextRequest) {

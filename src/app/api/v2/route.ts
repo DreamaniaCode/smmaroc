@@ -1,3 +1,4 @@
+import {refreshOrderStatuses} from "@/lib/sync-order-statuses";
 import {serviceAvailableForNewOrder} from "@/lib/catalog-availability";
 import { apiOrderStatus } from "@/lib/order-status";
 import { NextRequest, NextResponse } from "next/server";
@@ -193,11 +194,13 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Missing order parameter" }, { status: 400 });
       }
 
-      const order = await db.order.findUnique({ where: { id: orderId } });
+      let order = await db.order.findUnique({ where: { id: orderId } });
       if (!order || (user.role !== "ADMIN" && order.userId !== user.id)) {
         return NextResponse.json({ error: "Incorrect order ID" }, { status: 404 });
       }
 
+      await refreshOrderStatuses({id:orderId,...(user.role==="ADMIN"?{}:{userId:user.id})});
+      order=await db.order.findUnique({where:{id:orderId}});
       return NextResponse.json({
         charge: (order.customerCost || 0.0).toFixed(2),
         start_count: order.startCount !== null ? String(order.startCount) : "0",

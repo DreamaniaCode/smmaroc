@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {readApi} from "@/lib/api-client";
 import {
   Search,
@@ -18,6 +18,8 @@ import {
 
 export default function OrdersPage() {
   const [retryOrder,setRetryOrder]=useState<any>(null),[retryServices,setRetryServices]=useState<any[]>([]),[retryService,setRetryService]=useState(""),[retryQuery,setRetryQuery]=useState(""),[retryConfirmed,setRetryConfirmed]=useState(false),[retryError,setRetryError]=useState(""),[retryNotice,setRetryNotice]=useState("");
+  const requestInFlight=useRef(false);
+  const [syncWarning,setSyncWarning]=useState(""),[lastSyncedAt,setLastSyncedAt]=useState<string|null>(null);
   const [error,setError] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
   useEffect(() => { readApi("/api/auth/me").then(data => setIsAdmin(data.user?.role === "ADMIN")).catch(err=>setError(err.message)); }, []);
@@ -29,9 +31,11 @@ export default function OrdersPage() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  const fetchOrders = async () => {
+  const fetchOrders = async (force=false) => {
+    if(requestInFlight.current)return;requestInFlight.current=true;setLoading(true);
     try {
       const params = new URLSearchParams();
+      if(force)params.set("refresh","1");
       const selectedUser = new URLSearchParams(window.location.search).get("userId");
       const selectedClient = new URLSearchParams(window.location.search).get("clientId");
       if(selectedUser) params.set("userId", selectedUser);
@@ -42,20 +46,24 @@ export default function OrdersPage() {
 
       const data = await readApi(`/api/orders?${params.toString()}`);
       setOrders(data.orders || []);
+      setSyncWarning(data.sync?.failed?"L’actualisation des statuts est temporairement indisponible pour certaines commandes. Les dernières valeurs connues sont affichées.":"");
+      if(data.sync?.checkedAt)setLastSyncedAt(data.sync.checkedAt);
       setError("");
     } catch (err: any) {
       setError(err.message);
     } finally {
-      setLoading(false);
+      requestInFlight.current=false;setLoading(false);
     }
   };
 
   useEffect(() => {
     fetchOrders();
-    const timer = setInterval(fetchOrders, 30000);
+    const timer = setInterval(()=>{if(document.visibilityState==="visible")void fetchOrders();}, 30000);
+    const focus=()=>{if(document.visibilityState==="visible")void fetchOrders(true);};
+    window.addEventListener("focus",focus);document.addEventListener("visibilitychange",focus);
     readApi("/api/clients")
       .then((data) => setClients(data.clients || [])).catch(err=>setError(err.message));
-    return () => clearInterval(timer);
+    return () => {clearInterval(timer);window.removeEventListener("focus",focus);document.removeEventListener("visibilitychange",focus);};
   }, [statusFilter, clientFilter]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
@@ -185,7 +193,7 @@ export default function OrdersPage() {
       {retryNotice&&<p role="status" className="p-4 border rounded-xl">{retryNotice}</p>}
       {retryOrder&&<div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4"><section role="dialog" aria-modal="true" aria-label="Reprendre la commande" className="bg-slate-900 rounded-2xl border border-slate-800 p-6 w-full max-w-xl space-y-4"><h2 className="font-bold text-lg">Reprendre la commande #{retryOrder.id.slice(0,8)}</h2><p className="text-sm">Choisissez un service actif pour {retryOrder.quantity.toLocaleString()} unités. Le prix déjà payé par le client reste inchangé, sans nouveau débit.</p><input className="w-full p-3 border rounded-xl" aria-label="Rechercher un service de remplacement" value={retryQuery} onChange={e=>setRetryQuery(e.target.value)} placeholder="Rechercher un service"/><select className="w-full p-3 border rounded-xl" aria-label="Service de remplacement" value={retryService} onChange={e=>setRetryService(e.target.value)}><option value="">Choisir un service actif…</option>{retryServices.filter(s=>(s.name+" "+s.category).toLowerCase().includes(retryQuery.toLowerCase())).slice(0,100).map(s=><option key={s.id} value={s.id}>{s.name} · coût fournisseur estimé {(s.ratePer1000*retryOrder.quantity/1000*retryOrder.runs).toFixed(2)}</option>)}</select><label className="flex items-start gap-3 text-sm"><input type="checkbox" checked={retryConfirmed} onChange={e=>setRetryConfirmed(e.target.checked)}/><span>J’ai vérifié l’historique JAP : aucune commande correspondante n’existe pour ce profil et cette quantité.</span></label>{retryError&&<p role="alert" className="text-rose-500">{retryError}</p>}<div className="flex justify-end gap-3"><button disabled={actionLoading!==null} onClick={()=>setRetryOrder(null)} className="p-3 border rounded-xl">Fermer</button><button disabled={!retryService||!retryConfirmed||actionLoading!==null} onClick={submitRetry} className="p-3 bg-brand-600 text-white rounded-xl">{actionLoading?"Traitement…":"Reprendre sans nouveau débit"}</button></div></section></div>}
 
-      {error && <div role="alert" className="dashboard-alert">{error}<button onClick={fetchOrders}>Réessayer</button></div>}
+      {error && <div role="alert" className="dashboard-alert">{error}<button onClick={()=>fetchOrders(true)}>Réessayer</button></div>}
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -196,10 +204,10 @@ export default function OrdersPage() {
         </div>
         <div className="flex items-center gap-3">
           <button
-            onClick={fetchOrders}
+            onClick={()=>fetchOrders(true)}
             className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition border border-slate-700"
           >
-            <RefreshCw className="w-3.5 h-3.5" /> Refresh
+            <RefreshCw className={`w-3.5 h-3.5 ${loading?"animate-spin":""}`} /> {loading?"Actualisation…":"Actualiser"}
           </button>
           <button
             onClick={handleExportCSV}
@@ -256,6 +264,8 @@ export default function OrdersPage() {
         </div>
       </div>
 
+      <p className="text-xs text-slate-500">Actualisation automatique toutes les 30 secondes, page visible.{lastSyncedAt?" Derniers statuts reçus à "+new Date(lastSyncedAt).toLocaleTimeString("fr-MA"):""}</p>
+      {syncWarning&&<p role="status" className="p-3 border rounded-xl text-amber-400">{syncWarning}</p>}
       {/* Orders Table */}
       <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 overflow-hidden">
         <div className="overflow-x-auto">

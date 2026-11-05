@@ -44,7 +44,7 @@ export class SmmClient {
   private apiUrl: string;
   private apiKey: string;
 
-  constructor(apiUrl: string, apiKey: string) {
+  constructor(apiUrl: string, apiKey: string, private timeoutMs = 45000) {
     this.apiUrl = normalizeProviderUrl(apiUrl);
     this.apiKey = apiKey.trim();
   }
@@ -64,7 +64,7 @@ export class SmmClient {
           "Content-Type": "application/x-www-form-urlencoded",
           "User-Agent": "SMM-Agency-Panel/1.0",
         },
-        timeout: 45000,
+        timeout: this.timeoutMs,
       });
       return response.data;
     } catch (error: any) {
