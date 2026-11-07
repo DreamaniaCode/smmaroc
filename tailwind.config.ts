@@ -9,7 +9,9 @@ const config: Config = {
   darkMode: "class",
   theme: {
     extend: {
+fontFamily:{sans:["Geist","system-ui","sans-serif"],heading:["Geist","system-ui","sans-serif"],mono:["Geist Mono","ui-monospace","monospace"]},
       colors: {
+background:"var(--background)",foreground:"var(--foreground)",card:{DEFAULT:"var(--card)",foreground:"var(--card-foreground)"},popover:{DEFAULT:"var(--popover)",foreground:"var(--popover-foreground)"},secondary:{DEFAULT:"var(--secondary)",foreground:"var(--secondary-foreground)"},muted:{DEFAULT:"var(--muted)",foreground:"var(--muted-foreground)"},border:"var(--border)",input:"var(--input)",ring:"var(--ring)",ink:{DEFAULT:"#2A1E18",soft:"#4A3A30",line:"#3E2F27"},ivory:{DEFAULT:"#FAF6EF",deep:"#F2EBE0",soft:"#FFFDF9"},coral:{DEFAULT:"#B03E26",dark:"#8F311D",tint:"#FBEAE3",light:"#F3B79E"},success:{DEFAULT:"#2E6B3E",tint:"#E6F1E8"},warning:{DEFAULT:"#8A5300",tint:"#FBF0DC"},danger:{DEFAULT:"#B42318",tint:"#FCE9E7"},info:{DEFAULT:"#2B5A86",tint:"#E5EEF7"},
         dark: {
           950: "#06080F",
           900: "#0B0F19",
