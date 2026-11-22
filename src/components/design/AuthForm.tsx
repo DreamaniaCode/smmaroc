@@ -18,6 +18,7 @@ export function AuthForm({ mode }: {
 
     // 2FA state
     const [require2FA, setRequire2FA] = useState(false);
+    const [tempToken, setTempToken] = useState('');
     const [totpCode, setTotpCode] = useState('');
     const [isBackupCode, setIsBackupCode] = useState(false);
 
@@ -53,6 +54,7 @@ export function AuthForm({ mode }: {
 
             // Check if 2FA verification is required
             if (data.require2FA) {
+                setTempToken(data.tempToken || '');
                 setRequire2FA(true);
                 setBusy(false);
                 return;
@@ -75,7 +77,7 @@ export function AuthForm({ mode }: {
             const res = await fetch('/api/auth/2fa/verify', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ code: totpCode.trim() })
+                body: JSON.stringify({ code: totpCode.trim(), tempToken })
             });
 
             const data = await res.json();

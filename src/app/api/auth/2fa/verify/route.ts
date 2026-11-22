@@ -13,7 +13,9 @@ function getClientIp(req: NextRequest): string {
 
 export async function POST(req: NextRequest) {
   try {
-    const { tempToken, code } = await req.json();
+    const body = await req.json().catch(() => ({}));
+    const code = String(body.code || body.token || "").trim();
+    const tempToken = body.tempToken || req.cookies.get("smm_2fa_pending")?.value;
     const ip = getClientIp(req);
 
     if (!tempToken || !code) {
@@ -34,7 +36,7 @@ export async function POST(req: NextRequest) {
     }
 
     const cleanCode = code.trim();
-    let isTotpValid = verifyTotpToken(user.twoFactorSecret, cleanCode);
+    let isTotpValid = verifyTotpToken(user.twoFactorSecret, cleanCode, 2);
     let usedBackupCode = false;
 
     // Check backup codes if TOTP failed
@@ -114,6 +116,7 @@ export async function POST(req: NextRequest) {
       maxAge: 60 * 60 * 24 * 7,
       path: "/",
     });
+    res.cookies.delete("smm_2fa_pending");
 
     return res;
   } catch (error: any) {

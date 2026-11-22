@@ -65,7 +65,8 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { code } = await req.json();
+    const body = await req.json();
+    const code = String(body.code || body.token || "").trim();
     if (!code) {
       return NextResponse.json({ error: "Code 2FA obligatoire." }, { status: 400 });
     }
@@ -74,11 +75,13 @@ export async function POST(req: NextRequest) {
       where: { id: session.userId },
     });
 
-    if (!user || !user.twoFactorSecret) {
+    const secret = String(body.secret || user?.twoFactorSecret || "").trim();
+
+    if (!user || !secret) {
       return NextResponse.json({ error: "Veuillez d'abord initialiser la configuration 2FA." }, { status: 400 });
     }
 
-    const isValid = verifyTotpToken(user.twoFactorSecret, code);
+    const isValid = verifyTotpToken(secret, code, 2);
     if (!isValid) {
       return NextResponse.json({ error: "Code invalide. Vérifiez l'heure de votre appareil et réessayez." }, { status: 400 });
     }
@@ -87,6 +90,7 @@ export async function POST(req: NextRequest) {
     await db.user.update({
       where: { id: user.id },
       data: {
+        twoFactorSecret: secret,
         twoFactorEnabled: true,
         twoFactorBackupCodes: backupCodes.join(","),
       },

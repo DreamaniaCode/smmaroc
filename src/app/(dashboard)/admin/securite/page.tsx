@@ -106,7 +106,7 @@ export default function SecurityPage() {
       const res = await fetch("/api/auth/2fa", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token: verifyCode.trim(), secret: secretKey }),
+        body: JSON.stringify({ code: verifyCode.trim(), token: verifyCode.trim(), secret: secretKey }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Code invalide");

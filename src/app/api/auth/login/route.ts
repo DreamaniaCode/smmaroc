@@ -117,11 +117,21 @@ export async function POST(req: NextRequest) {
         name: user.name,
       });
 
-      return NextResponse.json({
+      const response = NextResponse.json({
         require2FA: true,
         tempToken,
         message: "Code d'authentification à deux facteurs requis.",
       });
+
+      response.cookies.set("smm_2fa_pending", tempToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 300,
+        path: "/",
+      });
+
+      return response;
     }
 
     // 6. Direct Login Completion (No 2FA or 2FA not enabled)
