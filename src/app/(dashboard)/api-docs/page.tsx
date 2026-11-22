@@ -15,7 +15,7 @@ export default function ApiDocsPage() {
             .catch(() => { });
     }, []);
     const apiKey = user?.apiKey || "YOUR_SMMAROC_API_KEY";
-    const apiUrl = typeof window !== "undefined" ? `${window.location.origin}/api/v2` : "https://smmaroc.com/api/v2";
+    const apiUrl = typeof window !== "undefined" ? `${window.location.origin}/api/v2` : "https://smmaroc.site/api/v2";
     const handleCopy = () => {
         navigator.clipboard.writeText(apiKey);
         setCopied(true);

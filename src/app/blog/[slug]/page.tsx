@@ -30,7 +30,7 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
     const title = post.seoTitle || post.title;
     const description = post.seoDescription || post.excerpt;
     const canonical = `/blog/${post.slug}`;
-    const images = post.coverImage ? [post.coverImage] : ["https://smmaroc.com/opengraph-image"];
+    const images = post.coverImage ? [post.coverImage] : ["https://smmaroc.site/opengraph-image"];
 
     return {
       title,
@@ -41,7 +41,7 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
       openGraph: {
         title,
         description,
-        url: `https://smmaroc.com${canonical}`,
+        url: `https://smmaroc.site${canonical}`,
         type: "article",
         publishedTime: post.publishedAt?.toISOString(),
         modifiedTime: post.updatedAt?.toISOString(),
@@ -109,10 +109,10 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
     orderBy: { createdAt: "desc" },
   });
 
-  const postUrl = `https://smmaroc.com/blog/${post.slug}`;
+  const postUrl = `https://smmaroc.site/blog/${post.slug}`;
   const publishedDateIso = (post.publishedAt || post.createdAt).toISOString();
   const modifiedDateIso = (post.updatedAt || post.createdAt).toISOString();
-  const coverImg = post.coverImage || "https://smmaroc.com/opengraph-image";
+  const coverImg = post.coverImage || "https://smmaroc.site/opengraph-image";
 
   const breadcrumbJsonLd = {
     "@context": "https://schema.org",
@@ -122,13 +122,13 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
         "@type": "ListItem",
         "position": 1,
         "name": "Accueil",
-        "item": "https://smmaroc.com",
+        "item": "https://smmaroc.site",
       },
       {
         "@type": "ListItem",
         "position": 2,
         "name": "Blog",
-        "item": "https://smmaroc.com/blog",
+        "item": "https://smmaroc.site/blog",
       },
       {
         "@type": "ListItem",
@@ -154,12 +154,12 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
     },
     "publisher": {
       "@type": "Organization",
-      "@id": "https://smmaroc.com/#organization",
+      "@id": "https://smmaroc.site/#organization",
       "name": "SMMaroc",
-      "url": "https://smmaroc.com",
+      "url": "https://smmaroc.site",
       "logo": {
         "@type": "ImageObject",
-        "url": "https://smmaroc.com/icons/icon-512.png",
+        "url": "https://smmaroc.site/icons/icon-512.png",
       },
     },
     "mainEntityOfPage": {

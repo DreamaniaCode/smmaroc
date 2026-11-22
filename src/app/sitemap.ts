@@ -1,8 +1,28 @@
 import { MetadataRoute } from "next";
+import { headers } from "next/headers";
 import { prisma } from "@/lib/db";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://smmaroc.com";
+  let baseUrl = process.env.NEXT_PUBLIC_APP_URL;
+
+  if (!baseUrl) {
+    try {
+      const headersList = await headers();
+      const host = headersList.get("x-forwarded-host") || headersList.get("host");
+      const proto = headersList.get("x-forwarded-proto") || (host?.includes("localhost") ? "http" : "https");
+      if (host) {
+        baseUrl = `${proto}://${host}`;
+      }
+    } catch {
+      // In static rendering or non-request context
+    }
+  }
+
+  if (!baseUrl) {
+    baseUrl = "https://smmaroc.site";
+  }
+
+  baseUrl = baseUrl.replace(/\/$/, "");
 
   // Static Public Routes
   const staticRoutes: MetadataRoute.Sitemap = [

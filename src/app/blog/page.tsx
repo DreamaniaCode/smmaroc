@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Blog SMMaroc | Conseils & Croissance Réseaux Sociaux au Maroc",
     description: "Guides, analyses algorithmes et stratégies pour maximiser votre visibilité sur les réseaux sociaux au Maroc.",
-    url: "https://smmaroc.com/blog",
+    url: "https://smmaroc.site/blog",
     type: "website",
   },
   twitter: {
@@ -29,13 +29,13 @@ const breadcrumbJsonLd = {
       "@type": "ListItem",
       "position": 1,
       "name": "Accueil",
-      "item": "https://smmaroc.com",
+      "item": "https://smmaroc.site",
     },
     {
       "@type": "ListItem",
       "position": 2,
       "name": "Blog & Conseils",
-      "item": "https://smmaroc.com/blog",
+      "item": "https://smmaroc.site/blog",
     },
   ],
 };

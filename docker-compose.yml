@@ -8,6 +8,7 @@ services:
       dockerfile: Dockerfile
       args:
         - JWT_SECRET=${JWT_SECRET:-smm-panel-coolify-super-secret-key-32chars}
+        - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-https://smmaroc.site}
     restart: always
     command: ["sh", "-c", "npm run db:migrate && npm start"]
     healthcheck:
@@ -20,9 +21,10 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=production
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-https://smmaroc.site}
       - DATABASE_URL=${DATABASE_URL:?PostgreSQL DATABASE_URL is required}
       - JWT_SECRET=${JWT_SECRET:-smm-panel-coolify-super-secret-key-32chars}
-      - ADMIN_INITIAL_EMAIL=${ADMIN_INITIAL_EMAIL:-admin@smmaroc.com}
+      - ADMIN_INITIAL_EMAIL=${ADMIN_INITIAL_EMAIL:-admin@smmaroc.site}
       - ADMIN_INITIAL_PASSWORD=${ADMIN_INITIAL_PASSWORD:-}
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}

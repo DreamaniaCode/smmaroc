@@ -7,13 +7,13 @@ export const metadata: Metadata = {
   description:
     "Guide étape par étape pour utiliser SMMaroc : inscription gratuite, recharge sécurisée en Dirhams (MAD), sélection du service et suivi en direct de vos commandes.",
   alternates: {
-    canonical: "https://smmaroc.com/fonctionnement",
+    canonical: "/fonctionnement",
   },
   openGraph: {
     title: "Comment Fonctionne SMMaroc | Guide & Utilisation",
     description:
       "Tout comprendre sur le fonctionnement de SMMaroc : recharge de solde, passage de commande et livraison rapide.",
-    url: "https://smmaroc.com/fonctionnement",
+    url: "https://smmaroc.site/fonctionnement",
   },
 };
 
@@ -26,13 +26,13 @@ export default function FonctionnementPage() {
         "@type": "ListItem",
         position: 1,
         name: "Accueil",
-        item: "https://smmaroc.com",
+        item: "https://smmaroc.site",
       },
       {
         "@type": "ListItem",
         position: 2,
         name: "Fonctionnement",
-        item: "https://smmaroc.com/fonctionnement",
+        item: "https://smmaroc.site/fonctionnement",
       },
     ],
   };

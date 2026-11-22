@@ -8,13 +8,13 @@ export const metadata: Metadata = {
   description:
     "Découvrez notre catalogue complet de services pour réseaux sociaux : Instagram, TikTok, YouTube, Facebook, Telegram. Tarifs transparents par 1 000 en Dirhams marocains (MAD).",
   alternates: {
-    canonical: "https://smmaroc.com/catalogue",
+    canonical: "/catalogue",
   },
   openGraph: {
     title: "Catalogue des Services & Tarifs MAD | SMMaroc",
     description:
       "Abonnés, likes, vues et partages pour tous vos réseaux sociaux. Comparez les tarifs en MAD et commandez en direct.",
-    url: "https://smmaroc.com/catalogue",
+    url: "https://smmaroc.site/catalogue",
   },
 };
 
@@ -27,13 +27,13 @@ export default function CataloguePage() {
         "@type": "ListItem",
         position: 1,
         name: "Accueil",
-        item: "https://smmaroc.com",
+        item: "https://smmaroc.site",
       },
       {
         "@type": "ListItem",
         position: 2,
         name: "Catalogue des Services",
-        item: "https://smmaroc.com/catalogue",
+        item: "https://smmaroc.site/catalogue",
       },
     ],
   };

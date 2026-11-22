@@ -1,7 +1,27 @@
 import { MetadataRoute } from "next";
+import { headers } from "next/headers";
 
-export default function robots(): MetadataRoute.Robots {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://smmaroc.com";
+export default async function robots(): Promise<MetadataRoute.Robots> {
+  let baseUrl = process.env.NEXT_PUBLIC_APP_URL;
+
+  if (!baseUrl) {
+    try {
+      const headersList = await headers();
+      const host = headersList.get("x-forwarded-host") || headersList.get("host");
+      const proto = headersList.get("x-forwarded-proto") || (host?.includes("localhost") ? "http" : "https");
+      if (host) {
+        baseUrl = `${proto}://${host}`;
+      }
+    } catch {
+      // In static rendering or non-request context
+    }
+  }
+
+  if (!baseUrl) {
+    baseUrl = "https://smmaroc.site";
+  }
+
+  baseUrl = baseUrl.replace(/\/$/, "");
 
   return {
     rules: [

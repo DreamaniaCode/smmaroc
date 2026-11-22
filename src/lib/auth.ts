@@ -97,7 +97,7 @@ export async function ensureInitialAdmin() {
       // Generate a secure random password if no credentials were provided
       const randomPass = "SMM-" + crypto.randomBytes(8).toString("hex") + "!2026";
       const hashedPassword = await hashPassword(randomPass);
-      const fallbackEmail = "admin@smmaroc.com";
+      const fallbackEmail = "admin@smmaroc.site";
       await db.user.create({
         data: {
           email: fallbackEmail,

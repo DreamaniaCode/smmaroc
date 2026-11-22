@@ -407,7 +407,7 @@ export default function AdminStaffPage() {
                 <input
                   type="email"
                   required
-                  placeholder="youssef@smmaroc.com"
+                  placeholder="youssef@smmaroc.site"
                   value={newStaff.email}
                   onChange={(e) => setNewStaff({ ...newStaff, email: e.target.value })}
                   className="mt-1 h-10 w-full rounded-lg border border-border px-3 text-sm bg-background"

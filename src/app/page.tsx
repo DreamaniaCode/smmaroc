@@ -7,13 +7,13 @@ export const metadata: Metadata = {
   description:
     "Plateforme professionnelle pour réseaux sociaux au Maroc : Instagram, TikTok, YouTube, Facebook. Tarifs en Dirhams (MAD), livraison rapide et suivi en temps réel.",
   alternates: {
-    canonical: "https://smmaroc.com",
+    canonical: "/",
   },
   openGraph: {
     title: "SMMaroc | N°1 Panel SMM au Maroc en Dirhams (MAD)",
     description:
       "Plateforme professionnelle pour réseaux sociaux au Maroc. Tarifs en MAD, commandes directes et suivi transparent.",
-    url: "https://smmaroc.com",
+    url: "https://smmaroc.site",
   },
 };
 

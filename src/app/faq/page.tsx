@@ -8,13 +8,13 @@ export const metadata: Metadata = {
   description:
     "Toutes les réponses à vos questions sur SMMaroc : inscription, sécurité des comptes, devis en Dirhams (MAD), délais de livraison et recharge de solde.",
   alternates: {
-    canonical: "https://smmaroc.com/faq",
+    canonical: "/faq",
   },
   openGraph: {
     title: "Questions Fréquentes (FAQ) | SMMaroc",
     description:
       "Tout ce que vous devez savoir avant de commander : tarifs en MAD, sécurité et support.",
-    url: "https://smmaroc.com/faq",
+    url: "https://smmaroc.site/faq",
   },
 };
 
@@ -40,13 +40,13 @@ export default function FaqPage() {
         "@type": "ListItem",
         position: 1,
         name: "Accueil",
-        item: "https://smmaroc.com",
+        item: "https://smmaroc.site",
       },
       {
         "@type": "ListItem",
         position: 2,
         name: "FAQ",
-        item: "https://smmaroc.com/faq",
+        item: "https://smmaroc.site/faq",
       },
     ],
   };

@@ -115,7 +115,7 @@ export default function OpenGraphImage() {
             <span>• API Revendeur Sécurisée</span>
           </div>
           <span style={{ fontSize: "18px", fontWeight: 700, color: "#FF5A36" }}>
-            smmaroc.com
+            smmaroc.site
           </span>
         </div>
       </div>
