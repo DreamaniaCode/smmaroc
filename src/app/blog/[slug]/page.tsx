@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
-import { db, prisma } from "@/lib/db";
+import { prisma } from "@/lib/db";
 import { PublicLayout } from "@/components/design/PublicLayout";
 import { BlogPostReaderClient, BlogPostItem } from "@/components/design/BlogPostReaderClient";
 
@@ -10,12 +8,19 @@ interface BlogPostPageProps {
   params: Promise<{ slug: string }>;
 }
 
+function toIsoDate(d: Date | string | null | undefined, fallback?: string): string {
+  if (!d) return fallback || new Date().toISOString();
+  if (d instanceof Date) return isNaN(d.getTime()) ? (fallback || new Date().toISOString()) : d.toISOString();
+  const parsed = new Date(d);
+  return isNaN(parsed.getTime()) ? (fallback || new Date().toISOString()) : parsed.toISOString();
+}
+
 export async function generateMetadata({ params }: BlogPostPageProps): Promise<Metadata> {
   const { slug } = await params;
   if (!slug) return { title: "Article introuvable" };
 
   try {
-    const post = await db.blogPost.findUnique({
+    const post = await prisma.blogPost.findUnique({
       where: { slug },
     });
 
@@ -32,6 +37,9 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
     const canonical = `/blog/${post.slug}`;
     const images = post.coverImage ? [post.coverImage] : ["https://smmaroc.site/opengraph-image"];
 
+    const publishedTime = post.publishedAt ? toIsoDate(post.publishedAt) : undefined;
+    const modifiedTime = (post.updatedAt || post.createdAt) ? toIsoDate(post.updatedAt || post.createdAt) : undefined;
+
     return {
       title,
       description,
@@ -43,8 +51,8 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
         description,
         url: `https://smmaroc.site${canonical}`,
         type: "article",
-        publishedTime: post.publishedAt?.toISOString(),
-        modifiedTime: post.updatedAt?.toISOString(),
+        publishedTime,
+        modifiedTime,
         authors: [post.authorName || "Équipe SMMaroc"],
         images: images.map((url) => ({ url, alt: title })),
       },
@@ -66,30 +74,12 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
     notFound();
   }
 
-  const post = await db.blogPost.findUnique({
+  const post = await prisma.blogPost.findUnique({
     where: { slug },
   });
 
   if (!post || !post.isPublished) {
-    return (
-      <PublicLayout>
-        <div className="bg-background min-h-[60vh] flex items-center justify-center py-16 px-4">
-          <div className="max-w-md text-center">
-            <h1 className="text-2xl font-bold text-ink">Article introuvable</h1>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Cet article n&apos;existe pas, a été déplacé ou n&apos;est plus publié.
-            </p>
-            <Link
-              href="/blog"
-              className="mt-6 inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold text-white bg-coral rounded-lg hover:bg-coral-dark transition-colors"
-            >
-              <ArrowLeft size={14} />
-              Retour au Blog
-            </Link>
-          </div>
-        </div>
-      </PublicLayout>
-    );
+    notFound();
   }
 
   // Increment views count asynchronously
@@ -99,7 +89,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
   }).catch(() => {});
 
   // Fetch related posts from same category
-  const relatedPosts = await db.blogPost.findMany({
+  const relatedPosts = await prisma.blogPost.findMany({
     where: {
       category: post.category,
       isPublished: true,
@@ -110,8 +100,8 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
   });
 
   const postUrl = `https://smmaroc.site/blog/${post.slug}`;
-  const publishedDateIso = (post.publishedAt || post.createdAt).toISOString();
-  const modifiedDateIso = (post.updatedAt || post.createdAt).toISOString();
+  const publishedDateIso = toIsoDate(post.publishedAt || post.createdAt);
+  const modifiedDateIso = toIsoDate(post.updatedAt || post.createdAt);
   const coverImg = post.coverImage || "https://smmaroc.site/opengraph-image";
 
   const breadcrumbJsonLd = {
@@ -180,9 +170,9 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
     category: post.category,
     tags: post.tags,
     readingTimeMin: 4,
-    viewsCount: post.viewsCount + 1,
+    viewsCount: (post.viewsCount || 0) + 1,
     authorName: post.authorName,
-    publishedAt: post.publishedAt,
+    publishedAt: post.publishedAt ? toIsoDate(post.publishedAt) : null,
   };
 
   const clientRelated: BlogPostItem[] = relatedPosts.map((r) => ({
@@ -195,9 +185,9 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
     category: r.category,
     tags: r.tags,
     readingTimeMin: 4,
-    viewsCount: r.viewsCount,
+    viewsCount: r.viewsCount || 0,
     authorName: r.authorName,
-    publishedAt: r.publishedAt,
+    publishedAt: r.publishedAt ? toIsoDate(r.publishedAt) : null,
   }));
 
   return (
