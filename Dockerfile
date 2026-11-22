@@ -17,8 +17,10 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
+ARG JWT_SECRET="smm-agency-panel-build-placeholder-secret-32chars"
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
+ENV JWT_SECRET=${JWT_SECRET}
 
 RUN npm run build
 

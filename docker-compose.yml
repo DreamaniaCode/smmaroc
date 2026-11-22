@@ -6,6 +6,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        - JWT_SECRET=${JWT_SECRET:-smm-panel-coolify-super-secret-key-32chars}
     restart: always
     command: ["sh", "-c", "npm run db:migrate && npm start"]
     healthcheck:
@@ -20,8 +22,8 @@ services:
       - NODE_ENV=production
       - DATABASE_URL=${DATABASE_URL:?PostgreSQL DATABASE_URL is required}
       - JWT_SECRET=${JWT_SECRET:-smm-panel-coolify-super-secret-key-32chars}
-      - ADMIN_INITIAL_EMAIL=${ADMIN_INITIAL_EMAIL:-admin@agency.com}
-      - ADMIN_INITIAL_PASSWORD=${ADMIN_INITIAL_PASSWORD:-AdminPassword123!}
+      - ADMIN_INITIAL_EMAIL=${ADMIN_INITIAL_EMAIL:-admin@smmaroc.com}
+      - ADMIN_INITIAL_PASSWORD=${ADMIN_INITIAL_PASSWORD:-}
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
     volumes:
@@ -32,6 +34,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        - JWT_SECRET=${JWT_SECRET:-smm-panel-coolify-super-secret-key-32chars}
     command: ["npm", "run", "worker"]
     restart: always
     environment:

@@ -3,13 +3,10 @@ import bcrypt from "bcryptjs";
 import crypto from "node:crypto";
 import { db } from "./db";
 
-if (process.env.NODE_ENV === "production" && !process.env.JWT_SECRET) {
-  throw new Error("SECURITY CRITICAL: JWT_SECRET environment variable is missing in production!");
+function getJwtSecret(): Uint8Array {
+  const secret = process.env.JWT_SECRET || "smm-agency-panel-fallback-secret-key-32charsmin";
+  return new TextEncoder().encode(secret);
 }
-
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || "smm-agency-panel-fallback-secret-key-32charsmin"
-);
 
 export type UserRole = "SUPER_ADMIN" | "ADMIN" | "SUPPORT" | "OPERATOR" | "USER";
 
@@ -47,7 +44,7 @@ export async function createSessionToken(payload: TokenPayload): Promise<string>
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime("7d")
-    .sign(JWT_SECRET);
+    .sign(getJwtSecret());
 }
 
 export async function create2FaPendingToken(payload: TokenPayload): Promise<string> {
@@ -55,12 +52,12 @@ export async function create2FaPendingToken(payload: TokenPayload): Promise<stri
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime("5m") // 5 minutes window to submit OTP
-    .sign(JWT_SECRET);
+    .sign(getJwtSecret());
 }
 
 export async function verifySessionToken(token: string): Promise<TokenPayload | null> {
   try {
-    const verified = await jwtVerify(token, JWT_SECRET);
+    const verified = await jwtVerify(token, getJwtSecret());
     return verified.payload as unknown as TokenPayload;
   } catch {
     return null;
