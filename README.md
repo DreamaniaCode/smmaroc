@@ -10,7 +10,14 @@ Panel Next.js 15 avec PostgreSQL et Prisma (Node.js 22 ou plus récent). Toutes 
 - npm run seed (création du premier administrateur uniquement)
 - npm run dev
 
-Accueil : / ; espace client : /orders/new ; administration : /dashboard.
+Accueil : / ; espace client : /orders/new ; administration : /dashboard ; CRM Clients : /admin/crm ; Gestion Équipe & 2FA : /admin/admins ; Blog : /blog ; CMS Blog : /admin/blog.
+
+## Nouvelles fonctionnalités (Sécurité, CRM & Blog)
+
+- **Sécurité Admin & 2FA** : Authentification à deux facteurs TOTP (Google Authenticator, Authy) avec QR code et 8 codes de secours d'urgence (`/admin/securite`). Protection anti-bruteforce (lockout 15 min après 5 échecs).
+- **Gestion d'Équipe & Audit Logs** : Rôles RBAC (`SUPER_ADMIN`, `ADMIN`, `SUPPORT`, `USER`), contrôle des accès et journal d'audit en temps réel (`/admin/admins`).
+- **CRM 360° Clients** : Fiche client 360°, chat WhatsApp en 1 clic (`wa.me`), ajustement direct du solde portefeuille avec motif d'audit, notes internes d'équipe et export CSV (`/admin/crm`).
+- **Blog & Magazine SEO** : Espace blog public (`/blog`, `/blog/[slug]`), partage social (WhatsApp, Telegram) et CMS de rédaction Markdown avec aperçu en direct (`/admin/blog`).
 
 ## Production
 
