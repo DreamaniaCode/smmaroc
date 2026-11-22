@@ -8,21 +8,94 @@ generator client {
 }
 
 model User {
-  id              String           @id @default(uuid())
-  email           String           @unique
-  name            String
-  passwordHash    String
-  role            String           @default("USER")
-  balance         Decimal          @default(0) @db.Decimal(24, 10)
-  currency        String           @default("MAD")
-  apiKey          String?          @unique
-  orders          Order[]
-  deposits        Deposit[]
-  supportRequests SupportRequest[]
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  id                    String           @id @default(uuid())
+  email                 String           @unique
+  name                  String
+  passwordHash          String
+  role                  String           @default("USER") // SUPER_ADMIN | ADMIN | SUPPORT | USER
+  balance               Decimal          @default(0) @db.Decimal(24, 10)
+  currency              String           @default("MAD")
+  apiKey                String?          @unique
+
+  // Security & 2FA
+  twoFactorSecret       String?          // Base32 TOTP Secret
+  twoFactorEnabled      Boolean          @default(false)
+  twoFactorBackupCodes  String?          // Comma-separated backup recovery codes
+  lastLoginAt           DateTime?
+  lastLoginIp           String?
+  failedLoginAttempts   Int              @default(0)
+  lockoutUntil          DateTime?
+  forcePasswordChange   Boolean          @default(false)
+
+  // CRM fields
+  phone                 String?          // WhatsApp / Phone
+  telegram              String?
+  company               String?
+  tier                  String           @default("STANDARD") // STANDARD | VIP | RESELLER | AGENCY
+  status                String           @default("ACTIVE")   // ACTIVE | SUSPENDED | BANNED
+  customDiscountPercent Decimal          @default(0) @db.Decimal(5, 2)
+  adminNotes            String?          @db.Text
+  crmNotes              CrmNote[]
+
+  orders                Order[]
+  deposits              Deposit[]
+  supportRequests       SupportRequest[]
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
 
   @@map("users")
+}
+
+model CrmNote {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  authorId   String
+  authorName String
+  content    String   @db.Text
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@map("crm_notes")
+}
+
+model AdminAuditLog {
+  id         String   @id @default(uuid())
+  adminId    String
+  adminEmail String
+  action     String   // LOGIN, FAILED_LOGIN, PASSWORD_CHANGE, 2FA_ENABLE, WALLET_ADJUST, STAFF_CREATE, etc.
+  targetType String?  // USER, DEPOSIT, SERVICE, PROVIDER, BLOG, SETTING
+  targetId   String?
+  details    String?  @db.Text
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  @@index([adminId, createdAt])
+  @@index([action, createdAt])
+  @@map("admin_audit_logs")
+}
+
+model BlogPost {
+  id             String    @id @default(uuid())
+  slug           String    @unique
+  title          String
+  excerpt        String    @db.Text
+  content        String    @db.Text
+  coverImage     String?
+  category       String    // Instagram, TikTok, YouTube, Facebook, Guides, E-commerce
+  tags           String?   // Comma-separated
+  authorName     String    @default("Équipe SMMaroc")
+  isPublished    Boolean   @default(false)
+  publishedAt    DateTime?
+  viewsCount     Int       @default(0)
+  seoTitle       String?
+  seoDescription String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([slug])
+  @@index([isPublished, publishedAt])
+  @@map("blog_posts")
 }
 
 model Client {
@@ -57,7 +130,7 @@ model Provider {
 }
 
 model Service {
-  isActive Boolean @default(true)
+  isActive           Boolean         @default(true)
   id                 String          @id @default(uuid())
   name               String
   category           String // e.g. "Instagram Followers", "YouTube Views"

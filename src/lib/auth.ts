@@ -1,16 +1,36 @@
 import { SignJWT, jwtVerify } from "jose";
 import bcrypt from "bcryptjs";
+import crypto from "node:crypto";
 import { db } from "./db";
+
+if (process.env.NODE_ENV === "production" && !process.env.JWT_SECRET) {
+  throw new Error("SECURITY CRITICAL: JWT_SECRET environment variable is missing in production!");
+}
 
 const JWT_SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || "smm-agency-panel-fallback-secret-key-32charsmin"
 );
 
+export type UserRole = "SUPER_ADMIN" | "ADMIN" | "SUPPORT" | "OPERATOR" | "USER";
+
 export interface TokenPayload {
   userId: string;
   email: string;
-  role: "ADMIN" | "OPERATOR" | "USER";
+  role: UserRole | string;
   name: string;
+  is2faPending?: boolean;
+}
+
+export function isSuperAdmin(role?: string): boolean {
+  return role === "SUPER_ADMIN";
+}
+
+export function isAdmin(role?: string): boolean {
+  return role === "SUPER_ADMIN" || role === "ADMIN";
+}
+
+export function isStaff(role?: string): boolean {
+  return role === "SUPER_ADMIN" || role === "ADMIN" || role === "SUPPORT" || role === "OPERATOR";
 }
 
 export async function hashPassword(password: string): Promise<string> {
@@ -23,10 +43,18 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
 }
 
 export async function createSessionToken(payload: TokenPayload): Promise<string> {
-  return new SignJWT({ ...payload })
+  return new SignJWT({ ...payload, is2faPending: false })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime("7d")
+    .sign(JWT_SECRET);
+}
+
+export async function create2FaPendingToken(payload: TokenPayload): Promise<string> {
+  return new SignJWT({ ...payload, is2faPending: true })
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime("5m") // 5 minutes window to submit OTP
     .sign(JWT_SECRET);
 }
 
@@ -40,25 +68,53 @@ export async function verifySessionToken(token: string): Promise<TokenPayload | 
 }
 
 /**
- * Ensures at least one admin user exists in the system.
+ * Ensures at least one admin user exists in the system without hardcoded credentials.
  */
 export async function ensureInitialAdmin() {
-  const count = await db.user.count({ where: { role: "ADMIN" } });
-  if (count === 0) {
-    const defaultEmail = process.env.ADMIN_INITIAL_EMAIL || "admin@agency.com";
-    const defaultPass = process.env.ADMIN_INITIAL_PASSWORD || "AdminPassword123!";
-    const hashedPassword = await hashPassword(defaultPass);
+  const count = await db.user.count({
+    where: {
+      role: { in: ["ADMIN", "SUPER_ADMIN"] },
+    },
+  });
 
-    await db.user.create({
-      data: {
-        email: defaultEmail.toLowerCase(),
-        name: "SMMaroc Administrator",
-        passwordHash: hashedPassword,
-        role: "ADMIN",
-        balance: 999999.0,
-        currency: "MAD",
-      },
-    });
-    console.log(`[AUTH] Initial admin account created: ${defaultEmail}`);
+  if (count === 0) {
+    const envEmail = process.env.ADMIN_INITIAL_EMAIL;
+    const envPass = process.env.ADMIN_INITIAL_PASSWORD;
+
+    // Only create initial admin if environment variables are provided
+    if (envEmail && envPass) {
+      const hashedPassword = await hashPassword(envPass);
+      await db.user.create({
+        data: {
+          email: envEmail.toLowerCase().trim(),
+          name: "SMMaroc Super Administrator",
+          passwordHash: hashedPassword,
+          role: "SUPER_ADMIN",
+          balance: 999999.0,
+          currency: "MAD",
+          forcePasswordChange: true,
+        },
+      });
+      console.log(`[AUTH] Initial Super Admin created for: ${envEmail}`);
+    } else {
+      // Generate a secure random password if no credentials were provided
+      const randomPass = "SMM-" + crypto.randomBytes(8).toString("hex") + "!2026";
+      const hashedPassword = await hashPassword(randomPass);
+      const fallbackEmail = "admin@smmaroc.com";
+      await db.user.create({
+        data: {
+          email: fallbackEmail,
+          name: "SMMaroc Super Administrator",
+          passwordHash: hashedPassword,
+          role: "SUPER_ADMIN",
+          balance: 999999.0,
+          currency: "MAD",
+          forcePasswordChange: true,
+        },
+      });
+      console.warn(`[AUTH_SECURITY_NOTICE] Initial Super Admin generated automatically.`);
+      console.warn(`[AUTH_SECURITY_NOTICE] Email: ${fallbackEmail}`);
+      console.warn(`[AUTH_SECURITY_NOTICE] Temporary Password: ${randomPass}`);
+    }
   }
 }

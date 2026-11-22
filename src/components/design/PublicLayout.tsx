@@ -9,6 +9,7 @@ import { LinkButton } from './LinkButton';
 const links = [
     { to: '/catalogue', label: 'Services & tarifs' },
     { to: '/fonctionnement', label: 'Fonctionnement' },
+    { to: '/blog', label: 'Blog & Conseils' },
     { to: '/faq', label: 'Questions fréquentes' }
 ];
 export function PublicLayout({ children }: {

@@ -38,7 +38,8 @@ export const db={
   async findMany(args:any={}):Promise<any[]>{return normalize(await prisma.user.findMany({...args,orderBy:args.orderBy??{createdAt:"desc"}}));},
   async count(args:any={}){return prisma.user.count(args);},
   async create({data}:any){return normalize(await prisma.user.create({data:{...data,email:data.email.toLowerCase(),apiKey:data.apiKey??"smm_live_"+crypto.randomBytes(16).toString("hex")}}));},
-  async update({where,data}:any){return normalize(await prisma.user.update({where,data}));}
+  async update({where,data}:any){return normalize(await prisma.user.update({where,data}));},
+  async delete(args:any){return normalize(await prisma.user.delete(args));}
  },
  deposit:{
   async findMany(args:any={}):Promise<any[]>{return normalize(await prisma.deposit.findMany({...args,orderBy:args.orderBy??{createdAt:"desc"},...(args.select?{}:{include:args.include??{user:{select:{name:true,email:true}}}})}));},
@@ -87,5 +88,50 @@ export const db={
   async findMany(){return normalize(await prisma.appSetting.findMany());},
   async findUnique(args:any){return normalize(await prisma.appSetting.findUnique(args));},
   async upsert(args:any){return normalize(await prisma.appSetting.upsert(args));}
+ },
+ blogPost: {
+  async findMany(args: any = {}): Promise<any[]> {
+    return normalize(await prisma.blogPost.findMany({ ...args, orderBy: args.orderBy ?? { createdAt: "desc" } }));
+  },
+  async findUnique(args: any) {
+    return normalize(await prisma.blogPost.findUnique(args));
+  },
+  async findFirst(args: any) {
+    return normalize(await prisma.blogPost.findFirst(args));
+  },
+  async create(args: any) {
+    return normalize(await prisma.blogPost.create(args));
+  },
+  async update(args: any) {
+    return normalize(await prisma.blogPost.update(args));
+  },
+  async delete(args: any) {
+    return normalize(await prisma.blogPost.delete(args));
+  },
+  async count(args: any = {}) {
+    return prisma.blogPost.count(args);
+  }
+ },
+ crmNote: {
+  async findMany(args: any = {}): Promise<any[]> {
+    return normalize(await prisma.crmNote.findMany({ ...args, orderBy: args.orderBy ?? { createdAt: "desc" } }));
+  },
+  async create(args: any) {
+    return normalize(await prisma.crmNote.create(args));
+  },
+  async delete(args: any) {
+    return normalize(await prisma.crmNote.delete(args));
+  }
+ },
+ adminAuditLog: {
+  async findMany(args: any = {}): Promise<any[]> {
+    return normalize(await prisma.adminAuditLog.findMany({ ...args, orderBy: args.orderBy ?? { createdAt: "desc" } }));
+  },
+  async create(args: any) {
+    return normalize(await prisma.adminAuditLog.create(args));
+  },
+  async count(args: any = {}) {
+    return prisma.adminAuditLog.count(args);
+  }
  }
 };
